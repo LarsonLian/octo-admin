@@ -1,0 +1,933 @@
+/* Admin shell scoped styles — scheme A: restrained, high-contrast, with dark mode.
+   Every rule is scoped under .admin-shell so /changelog is untouched.
+   The theme switch is driven by <html data-theme="dark|light"> (see useTheme). */
+
+.admin-shell {
+  /* Surfaces */
+  --a-bg-canvas: #f3f4f7;
+  --a-bg-surface: #ffffff;
+  --a-bg-elevated: #ffffff;
+  --a-bg-subtle: #f8fafc;
+  --a-bg-muted: #eef0f4;
+
+  /* Borders */
+  --a-border-default: #e5e7eb;
+  --a-border-strong: #d1d5db;
+
+  /* Text — tertiary bumped from #94A3B8 to #64748B for WCAG AA (4.5:1 on white) */
+  --a-text-primary: #0f172a;
+  --a-text-secondary: #475569;
+  --a-text-tertiary: #64748b;
+  --a-text-quaternary: #94a3b8;
+  --a-text-disabled: #cbd5e1;
+
+  /* Brand */
+  --a-brand: #4f46e5;
+  --a-brand-hover: #4338ca;
+  --a-brand-subtle-bg: #eef2ff;
+  --a-brand-subtle-fg: #4338ca;
+
+  /* Semantic */
+  --a-success: #10b981;
+  --a-success-bg: #ecfdf5;
+  --a-danger: #ef4444;
+  --a-danger-bg: #fef2f2;
+  --a-warning: #f59e0b;
+
+  /* Shadows */
+  --a-shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --a-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+  --a-shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 8px rgba(16, 24, 40, 0.06);
+
+  /* Radii */
+  --a-radius-xs: 2px;
+  --a-radius-sm: 4px;
+  --a-radius-md: 6px;
+  --a-radius-lg: 8px;
+  --a-radius-xl: 12px;
+  --a-radius-pill: 999px;
+
+  /* Type */
+  --a-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  background: var(--a-bg-canvas);
+  color: var(--a-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+/* Dark tokens — applied when <html data-theme="dark"> OR (system dark AND no explicit theme set) */
+:root[data-theme='dark'] .admin-shell {
+  --a-bg-canvas: #0b0d12;
+  --a-bg-surface: #14171f;
+  --a-bg-elevated: #1b1f2a;
+  --a-bg-subtle: #1f242f;
+  --a-bg-muted: #242937;
+
+  --a-border-default: #262b38;
+  --a-border-strong: #333948;
+
+  --a-text-primary: #e6e8ec;
+  --a-text-secondary: #a1a7b3;
+  --a-text-tertiary: #8b93a1;
+  --a-text-quaternary: #6b7280;
+  --a-text-disabled: #4b5563;
+
+  --a-brand: #6366f1;
+  --a-brand-hover: #818cf8;
+  --a-brand-subtle-bg: rgba(99, 102, 241, 0.14);
+  --a-brand-subtle-fg: #a5b4fc;
+
+  --a-success: #34d399;
+  --a-success-bg: rgba(52, 211, 153, 0.12);
+  --a-danger: #f87171;
+  --a-danger-bg: rgba(248, 113, 113, 0.12);
+  --a-warning: #fbbf24;
+
+  --a-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --a-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --a-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .admin-shell {
+    --a-bg-canvas: #0b0d12;
+    --a-bg-surface: #14171f;
+    --a-bg-elevated: #1b1f2a;
+    --a-bg-subtle: #1f242f;
+    --a-bg-muted: #242937;
+    --a-border-default: #262b38;
+    --a-border-strong: #333948;
+    --a-text-primary: #e6e8ec;
+    --a-text-secondary: #a1a7b3;
+    --a-text-tertiary: #8b93a1;
+    --a-text-quaternary: #6b7280;
+    --a-text-disabled: #4b5563;
+    --a-brand: #6366f1;
+    --a-brand-hover: #818cf8;
+    --a-brand-subtle-bg: rgba(99, 102, 241, 0.14);
+    --a-brand-subtle-fg: #a5b4fc;
+    --a-success: #34d399;
+    --a-success-bg: rgba(52, 211, 153, 0.12);
+    --a-danger: #f87171;
+    --a-danger-bg: rgba(248, 113, 113, 0.12);
+    --a-warning: #fbbf24;
+    --a-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --a-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --a-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Global colour transition (not on transform/layout) */
+.admin-shell,
+.admin-shell * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+.admin-shell ::selection {
+  background: rgba(99, 102, 241, 0.3);
+}
+
+/* Typography */
+.admin-shell .page-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--a-text-primary);
+  margin: 0 0 4px;
+  line-height: 1.25;
+}
+
+.admin-shell .page-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--a-text-tertiary);
+  margin: 0 0 20px;
+}
+
+.admin-shell .mono {
+  font-family: var(--a-font-mono);
+  font-size: 12px;
+}
+
+/* =========== Card =========== */
+.admin-shell .ant-card {
+  background: var(--a-bg-surface) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--a-radius-xl) !important;
+  box-shadow: var(--a-shadow-sm) !important;
+  color: var(--a-text-secondary);
+}
+
+:root[data-theme='dark'] .admin-shell .ant-card {
+  border-color: var(--a-border-default) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .admin-shell .ant-card {
+    border-color: var(--a-border-default) !important;
+  }
+}
+
+.admin-shell .ant-card-head {
+  background: transparent;
+  min-height: 44px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--a-border-default);
+}
+
+.admin-shell .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--a-text-primary);
+}
+
+.admin-shell .ant-card-body {
+  padding: 20px;
+}
+
+/* =========== Buttons =========== */
+.admin-shell .ant-btn {
+  border-radius: var(--a-radius-md) !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.admin-shell .ant-btn-sm { height: 28px !important; padding: 0 10px !important; }
+.admin-shell .ant-btn { height: 32px; padding: 0 14px; }
+.admin-shell .ant-btn-lg { height: 40px !important; padding: 0 18px !important; }
+
+.admin-shell .ant-btn-primary {
+  background: var(--a-brand) !important;
+  border-color: var(--a-brand) !important;
+  color: #fff !important;
+}
+
+.admin-shell .ant-btn-primary:hover,
+.admin-shell .ant-btn-primary:focus {
+  background: var(--a-brand-hover) !important;
+  border-color: var(--a-brand-hover) !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.admin-shell .ant-btn-default {
+  background: var(--a-bg-surface) !important;
+  border-color: var(--a-border-strong) !important;
+  color: var(--a-text-primary) !important;
+}
+
+.admin-shell .ant-btn-default:hover {
+  background: var(--a-bg-subtle) !important;
+  border-color: var(--a-border-strong) !important;
+  color: var(--a-text-primary) !important;
+}
+
+/* Ghost-by-default danger: list action buttons stay quiet, redden on hover */
+.admin-shell .ant-btn-dangerous.ant-btn-default {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--a-text-secondary) !important;
+}
+
+.admin-shell .ant-btn-dangerous.ant-btn-default:hover {
+  background: var(--a-danger-bg) !important;
+  color: var(--a-danger) !important;
+  border-color: transparent !important;
+}
+
+/* Mute-ghost (e.g. 禁言) — neutral by default, amber on hover */
+.admin-shell .ant-btn.btn-mute {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--a-text-secondary) !important;
+}
+
+.admin-shell .ant-btn.btn-mute:hover {
+  background: color-mix(in srgb, var(--a-warning) 14%, transparent) !important;
+  color: var(--a-warning) !important;
+  border-color: transparent !important;
+}
+
+/* Primary ghost (e.g. 解封) — restrained blue-indigo */
+.admin-shell .ant-btn-primary.ant-btn-background-ghost {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--a-text-secondary) !important;
+}
+
+.admin-shell .ant-btn-primary.ant-btn-background-ghost:hover {
+  background: var(--a-brand-subtle-bg) !important;
+  color: var(--a-brand-subtle-fg) !important;
+  border-color: transparent !important;
+}
+
+/* =========== Inputs =========== */
+.admin-shell .ant-input,
+.admin-shell .ant-input-affix-wrapper,
+.admin-shell .ant-input-password,
+.admin-shell .ant-input-number,
+.admin-shell .ant-select-selector,
+.admin-shell .ant-picker {
+  background: var(--a-bg-surface) !important;
+  border-color: var(--a-border-strong) !important;
+  border-radius: var(--a-radius-md) !important;
+  color: var(--a-text-primary) !important;
+}
+
+:root[data-theme='dark'] .admin-shell .ant-input,
+:root[data-theme='dark'] .admin-shell .ant-input-affix-wrapper,
+:root[data-theme='dark'] .admin-shell .ant-input-password,
+:root[data-theme='dark'] .admin-shell .ant-input-number,
+:root[data-theme='dark'] .admin-shell .ant-select-selector,
+:root[data-theme='dark'] .admin-shell .ant-picker {
+  background: var(--a-bg-muted) !important;
+}
+
+.admin-shell .ant-input::placeholder,
+.admin-shell .ant-input-affix-wrapper input::placeholder {
+  color: var(--a-text-tertiary) !important;
+}
+
+.admin-shell .ant-input:focus,
+.admin-shell .ant-input-focused,
+.admin-shell .ant-input-affix-wrapper-focused,
+.admin-shell .ant-input-affix-wrapper:focus,
+.admin-shell .ant-select-focused .ant-select-selector,
+.admin-shell .ant-picker-focused {
+  border-color: var(--a-brand) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+}
+
+:root[data-theme='dark'] .admin-shell .ant-input:focus,
+:root[data-theme='dark'] .admin-shell .ant-input-focused,
+:root[data-theme='dark'] .admin-shell .ant-input-affix-wrapper-focused,
+:root[data-theme='dark'] .admin-shell .ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+}
+
+/* Browser autofill fix */
+.admin-shell input:-webkit-autofill,
+.admin-shell input:-webkit-autofill:hover,
+.admin-shell input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--a-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--a-bg-surface) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* =========== Table =========== */
+.admin-shell .ant-table-wrapper {
+  background: var(--a-bg-surface);
+  border-radius: var(--a-radius-xl);
+  box-shadow: var(--a-shadow-sm);
+  border: 1px solid transparent;
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .admin-shell .ant-table-wrapper {
+  border-color: var(--a-border-default);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .admin-shell .ant-table-wrapper {
+    border-color: var(--a-border-default);
+  }
+}
+
+.admin-shell .ant-table {
+  background: var(--a-bg-surface) !important;
+  border-radius: var(--a-radius-xl) !important;
+  font-size: 13px;
+  color: var(--a-text-secondary);
+}
+
+.admin-shell .ant-table-wrapper .ant-table-container {
+  border-start-start-radius: var(--a-radius-xl);
+  border-start-end-radius: var(--a-radius-xl);
+}
+
+.admin-shell .ant-table-thead > tr > th {
+  background: var(--a-bg-subtle) !important;
+  color: var(--a-text-tertiary) !important;
+  font-weight: 500 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid var(--a-border-default) !important;
+}
+
+.admin-shell .ant-table-thead > tr > th::before { display: none !important; }
+
+.admin-shell .ant-table-tbody > tr > td {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--a-border-default) !important;
+  color: var(--a-text-secondary);
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.admin-shell .ant-table-thead > tr > th { white-space: nowrap; }
+.admin-shell .ant-table-cell-ellipsis { white-space: nowrap; }
+.admin-shell .pill-dot,
+.admin-shell .pill-outline,
+.admin-shell .pill-brand,
+.admin-shell .ai-tag,
+.admin-shell .cell-primary,
+.admin-shell .mono {
+  white-space: nowrap;
+}
+
+.admin-shell .ant-table-tbody > tr:hover > td {
+  background: var(--a-bg-subtle) !important;
+}
+
+/* Strong column cells (user name, key values) */
+.admin-shell .cell-primary {
+  color: var(--a-text-primary);
+  font-weight: 500;
+}
+
+/* Action column — always visible for discoverability (admin context) */
+.admin-shell .ant-table-tbody > tr .row-actions {
+  opacity: 1;
+}
+
+/* Pagination */
+.admin-shell .ant-pagination {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-top: 1px solid var(--a-border-default);
+  background: var(--a-bg-surface);
+  color: var(--a-text-secondary);
+}
+.admin-shell .ant-pagination .ant-pagination-total-text {
+  color: var(--a-text-tertiary);
+  margin-right: auto;
+}
+.admin-shell .ant-pagination-item,
+.admin-shell .ant-pagination-prev .ant-pagination-item-link,
+.admin-shell .ant-pagination-next .ant-pagination-item-link {
+  border-radius: var(--a-radius-md) !important;
+  background: var(--a-bg-surface);
+  border-color: var(--a-border-default) !important;
+  color: var(--a-text-secondary);
+}
+.admin-shell .ant-pagination-item-active {
+  border-color: var(--a-brand) !important;
+}
+.admin-shell .ant-pagination-item-active a { color: var(--a-brand) !important; }
+
+/* =========== Pill badges =========== */
+.admin-shell .ant-tag {
+  border: none;
+  border-radius: var(--a-radius-pill) !important;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0;
+}
+
+.admin-shell .pill-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--a-text-secondary);
+}
+
+.admin-shell .pill-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.admin-shell .pill-dot.online { color: var(--a-success); }
+.admin-shell .pill-dot.offline { color: var(--a-text-tertiary); }
+.admin-shell .pill-dot.banned { color: var(--a-danger); }
+.admin-shell .pill-dot.destroyed { color: var(--a-text-disabled); }
+.admin-shell .pill-dot.warning { color: var(--a-warning); }
+
+.admin-shell .pill-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+.admin-shell .pill-icon .anticon { font-size: 12px; }
+.admin-shell .pill-icon.online { color: var(--a-success); }
+.admin-shell .pill-icon.banned { color: var(--a-danger); }
+.admin-shell .pill-icon.destroyed { color: var(--a-text-disabled); }
+.admin-shell .pill-icon.warning { color: var(--a-warning); }
+
+/* AI tag — subtle corner mark, not a loud pill */
+.admin-shell .ai-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--a-text-quaternary);
+  padding: 1px 5px;
+  border-radius: var(--a-radius-sm);
+  background: var(--a-bg-subtle);
+  line-height: 14px;
+}
+.admin-shell .ai-tag .anticon { font-size: 10px; }
+
+.admin-shell .pill-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--a-radius-pill);
+  background: var(--a-brand-subtle-bg);
+  color: var(--a-brand-subtle-fg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+/* =========== Menu / Sider =========== */
+.admin-shell .ant-layout-sider {
+  background: var(--a-bg-surface) !important;
+  border-right: 1px solid var(--a-border-default);
+}
+
+.admin-shell .ant-menu-light,
+.admin-shell .ant-menu-inline,
+.admin-shell .ant-menu {
+  background: transparent !important;
+  border-inline-end: none !important;
+}
+
+.admin-shell .ant-menu .ant-menu-item {
+  border-radius: var(--a-radius-md) !important;
+  margin: 2px 10px !important;
+  width: calc(100% - 20px) !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  color: var(--a-text-secondary) !important;
+  font-weight: 500;
+  font-size: 13px;
+  padding-inline: 12px !important;
+}
+
+.admin-shell .ant-menu .ant-menu-item:not(.ant-menu-item-selected):hover {
+  background: var(--a-bg-subtle) !important;
+  color: var(--a-text-primary) !important;
+}
+
+.admin-shell .ant-menu .ant-menu-item-selected {
+  background: var(--a-brand-subtle-bg) !important;
+  color: var(--a-brand-subtle-fg) !important;
+  position: relative;
+}
+
+.admin-shell .ant-menu .ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--a-brand);
+}
+
+.admin-shell .ant-menu .ant-menu-item-selected .anticon,
+.admin-shell .ant-menu .ant-menu-item-selected .ant-menu-title-content {
+  color: var(--a-brand-subtle-fg) !important;
+}
+
+/* =========== Header action buttons =========== */
+.admin-shell .admin-header-action {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--a-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--a-text-secondary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.admin-shell .admin-header-action:hover {
+  background: var(--a-bg-subtle);
+  color: var(--a-text-primary);
+}
+
+/* =========== Statistic =========== */
+.admin-shell .ant-statistic-title {
+  color: var(--a-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.admin-shell .ant-statistic-content {
+  color: var(--a-text-primary);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.admin-shell .kpi-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 10px;
+}
+
+.admin-shell .kpi-delta.up { color: var(--a-success); }
+.admin-shell .kpi-delta.down { color: var(--a-danger); }
+.admin-shell .kpi-delta.flat { color: var(--a-text-tertiary); }
+
+.admin-shell .kpi-delta-label {
+  color: var(--a-text-tertiary);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* =========== Toolbar =========== */
+.admin-shell .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: var(--a-bg-surface);
+  border: 1px solid transparent;
+  border-radius: var(--a-radius-xl);
+  box-shadow: var(--a-shadow-sm);
+}
+
+:root[data-theme='dark'] .admin-shell .toolbar {
+  border-color: var(--a-border-default);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .admin-shell .toolbar {
+    border-color: var(--a-border-default);
+  }
+}
+
+.admin-shell .toolbar-spacer { flex: 1; }
+
+.admin-shell .toolbar.toolbar-plain {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  margin-bottom: 12px;
+}
+
+.admin-shell .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--a-warning-bg, rgba(234, 179, 8, 0.12));
+  color: var(--a-warning);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.admin-shell .filter-chip .anticon { font-size: 13px; }
+
+.admin-shell .meta-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+  color: var(--a-text-secondary);
+  font-size: 13px;
+}
+.admin-shell .meta-inline .meta-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--a-text-primary);
+  margin-right: 4px;
+}
+.admin-shell .meta-inline .meta-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--a-border-default);
+  align-self: center;
+}
+.admin-shell .meta-inline .meta-label {
+  color: var(--a-text-tertiary);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+/* =========== Breadcrumb =========== */
+.admin-shell .ant-breadcrumb {
+  font-size: 13px;
+}
+.admin-shell .ant-breadcrumb li:last-child {
+  color: var(--a-text-primary);
+  font-weight: 500;
+}
+.admin-shell .ant-breadcrumb a,
+.admin-shell .ant-breadcrumb li {
+  color: var(--a-text-tertiary);
+}
+.admin-shell .ant-breadcrumb a {
+  padding: 2px 4px;
+  border-radius: var(--a-radius-sm);
+  transition: background 0.15s, color 0.15s;
+}
+.admin-shell .ant-breadcrumb a:hover {
+  background: var(--a-bg-subtle);
+  color: var(--a-text-primary);
+}
+
+/* =========== Skeleton state =========== */
+.admin-shell .skeleton-chart {
+  height: 180px;
+  border-radius: var(--a-radius-md);
+  background: linear-gradient(
+    100deg,
+    var(--a-bg-subtle) 30%,
+    var(--a-bg-muted) 50%,
+    var(--a-bg-subtle) 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* =========== Modal radius =========== */
+.admin-modal .ant-modal-content {
+  background: var(--a-bg-elevated);
+  border-radius: var(--a-radius-xl);
+  box-shadow: var(--a-shadow-lg);
+}
+
+/* =========== Drawer =========== */
+.admin-drawer .ant-drawer-header {
+  border-bottom: 1px solid var(--a-border-default);
+  padding: 14px 20px;
+}
+.admin-drawer .ant-drawer-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--a-text-primary);
+}
+.admin-drawer .ant-drawer-body {
+  padding: 20px;
+  background: var(--a-bg-canvas);
+}
+
+/* Descriptions inside drawer — no borders, just spacing */
+.admin-drawer .ant-descriptions .ant-descriptions-row > td {
+  padding: 8px 0 !important;
+}
+.admin-drawer .ant-descriptions-view {
+  border: none;
+}
+.admin-drawer .ant-descriptions-item-label,
+.admin-drawer .ant-descriptions-item-content {
+  background: transparent !important;
+  border: none !important;
+}
+
+.admin-drawer > .ant-drawer-body > .ant-tabs > .ant-tabs-nav { margin-bottom: 12px; }
+
+/* Scrollbar (dark & light) */
+.admin-shell ::-webkit-scrollbar { width: 8px; height: 8px; }
+.admin-shell ::-webkit-scrollbar-track { background: transparent; }
+.admin-shell ::-webkit-scrollbar-thumb {
+  background: var(--a-border-strong);
+  border-radius: 4px;
+}
+.admin-shell ::-webkit-scrollbar-thumb:hover {
+  background: var(--a-text-tertiary);
+}
+
+/* Outline pill (platform badges, neutral tags) — border + color only, no bg */
+.admin-shell .pill-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--a-radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0.02em;
+  background: transparent;
+}
+
+.admin-shell .pill-outline.ios { color: #0ea5e9; }
+.admin-shell .pill-outline.android { color: #16a34a; }
+.admin-shell .pill-outline.web { color: var(--a-brand); }
+.admin-shell .pill-outline.plugin { color: #f97316; }
+.admin-shell .pill-outline.neutral { color: var(--a-text-tertiary); }
+.admin-shell .pill-outline.danger { color: var(--a-danger); }
+.admin-shell .pill-outline.warning { color: var(--a-warning); }
+.admin-shell .pill-outline.success { color: var(--a-success); }
+.admin-shell .pill-outline.brand { color: var(--a-brand); }
+
+:root[data-theme='dark'] .admin-shell .pill-outline.brand { color: #a5b4fc; }
+
+:root[data-theme='dark'] .admin-shell .pill-outline.ios { color: #38bdf8; }
+:root[data-theme='dark'] .admin-shell .pill-outline.android { color: #4ade80; }
+:root[data-theme='dark'] .admin-shell .pill-outline.web { color: #818cf8; }
+:root[data-theme='dark'] .admin-shell .pill-outline.plugin { color: #fb923c; }
+
+/* Ghost-style edit icon button for row actions */
+.admin-shell .ant-btn.btn-row-edit {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--a-text-secondary) !important;
+  padding: 0 8px !important;
+}
+.admin-shell .ant-btn.btn-row-edit:hover {
+  background: var(--a-brand-subtle-bg) !important;
+  color: var(--a-brand) !important;
+}
+
+/* Links inside admin content → brand color (not antd default blue) */
+.admin-shell a:not(.ant-btn) {
+  color: var(--a-brand);
+}
+.admin-shell a:not(.ant-btn):hover {
+  color: var(--a-brand-hover);
+}
+
+/* KPI zero state — subdued when value is 0 */
+.admin-shell .ant-statistic-content.kpi-zero {
+  color: var(--a-text-tertiary) !important;
+  font-weight: 400 !important;
+}
+
+/* Status banner — compact horizontal alert strip */
+.admin-shell .status-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--a-radius-lg);
+  background: var(--a-success-bg);
+  color: var(--a-success);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  border: 1px solid color-mix(in srgb, var(--a-success) 20%, transparent);
+}
+
+.admin-shell .status-banner .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent);
+  flex-shrink: 0;
+}
+
+.admin-shell .status-banner .status-meta {
+  color: var(--a-text-tertiary);
+  font-weight: 400;
+  margin-left: auto;
+}
+
+/* Empty state (card body) */
+.admin-shell .empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 10px;
+  color: var(--a-text-tertiary);
+  text-align: center;
+}
+
+.admin-shell .empty-card .empty-illust {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--a-bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--a-text-quaternary);
+  font-size: 22px;
+}
+
+.admin-shell .empty-card .empty-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--a-text-secondary);
+}
+
+.admin-shell .empty-card .empty-hint-text {
+  font-size: 12px;
+  color: var(--a-text-tertiary);
+}
+
+.admin-shell .empty-card .empty-cta {
+  margin-top: 4px;
+  color: var(--a-brand);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.admin-shell .empty-card .empty-cta:hover { color: var(--a-brand-hover); }
+
+/* Empty state */
+.admin-shell .empty-hint {
+  color: var(--a-text-tertiary);
+  font-size: 13px;
+  text-align: center;
+  padding: 48px 0;
+}
+
+.admin-shell .empty-hint .dot-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--a-success);
+  font-weight: 500;
+}
+
+.admin-shell .empty-hint .dot-ok::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent);
+}

@@ -1,0 +1,346 @@
+:root,
+[data-theme='light'] {
+  --bg-page: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --bg-chip-neutral: #f1f5f9;
+
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --text-primary: #0f172a;
+  --text-body: #475569;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-muted: #cbd5e1;
+
+  --brand: #6366f1;
+  --brand-hover: #4f46e5;
+  --brand-bg: #eef2ff;
+  --brand-text-on-bg: #4338ca;
+
+  --platform-android-base: #3ddc84;
+  --platform-android-bg: #ecfdf5;
+  --platform-android-text: #065f46;
+
+  --platform-ios-base: #007aff;
+  --platform-ios-bg: #eff6ff;
+  --platform-ios-text: #1e40af;
+
+  --platform-web-base: #6366f1;
+  --platform-web-bg: #eef2ff;
+  --platform-web-text: #3730a3;
+
+  --platform-plugin-base: #f59e0b;
+  --platform-plugin-bg: #fffbeb;
+  --platform-plugin-text: #92400e;
+
+  --state-force-base: #ef4444;
+  --state-force-bg: #fef2f2;
+  --state-force-text: #991b1b;
+
+  --cat-added-icon: #16a34a;
+  --cat-added-bg: #f0fdf4;
+  --cat-added-text: #166534;
+
+  --cat-fixed-icon: #f97316;
+  --cat-fixed-bg: #fff7ed;
+  --cat-fixed-text: #9a3412;
+
+  --cat-changed-icon: #6366f1;
+  --cat-changed-bg: #eef2ff;
+  --cat-changed-text: #3730a3;
+
+  --cat-removed-icon: #ef4444;
+  --cat-removed-bg: #fef2f2;
+  --cat-removed-text: #991b1b;
+
+  --cat-security-icon: #7c3aed;
+  --cat-security-bg: #f5f3ff;
+  --cat-security-text: #5b21b6;
+
+  --cat-other-icon: #64748b;
+  --cat-other-bg: #f8fafc;
+  --cat-other-text: #334155;
+
+  --sev-major-bg: #fee2e2;
+  --sev-major-text: #991b1b;
+  --sev-initial-bg: #e0e7ff;
+  --sev-initial-text: #3730a3;
+  --sev-prerelease-bg: #fef3c7;
+  --sev-prerelease-text: #92400e;
+
+  --heatmap-0: #f1f5f9;
+  --heatmap-1: #e0e7ff;
+  --heatmap-2: #a5b4fc;
+  --heatmap-3: #6366f1;
+  --heatmap-4: #4338ca;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04),
+                 0 4px 16px rgba(15, 23, 42, 0.06);
+
+  --header-bg: rgba(255, 255, 255, 0.85);
+
+  --heatmap-cell-shadow: inset -1px -1px 0 rgba(0, 0, 0, 0.15),
+                         inset 1px 1px 0 rgba(255, 255, 255, 0.25);
+
+  --tabs-ink-active: #4f46e5;
+  --tabs-ink-inactive: #64748b;
+  --tabs-ink-hover: #334155;
+  --tabs-indicator: #4f46e5;
+  --tabs-divider: #e2e8f0;
+
+  --spotlight-bg: #f8fafc;
+  --spotlight-border: #e2e8f0;
+  --spotlight-shadow: none;
+
+  --timeline-rail: rgba(226, 232, 240, 0.6);
+  --timeline-dot-border: #94a3b8;
+  --timeline-dot-glow: rgba(148, 163, 184, 0.18);
+
+  --divider-item: rgba(226, 232, 240, 0.6);
+
+  --text-section-label: #64748b;
+
+  --sev-minor-bg: #dbeafe;
+  --sev-minor-text: #1e40af;
+  --sev-patch-bg: #f1f5f9;
+  --sev-patch-text: #475569;
+}
+
+[data-theme='dark'] {
+  --bg-page: #0b1220;
+  --bg-surface: #111827;
+  --bg-subtle: #1e293b;
+  --bg-hover: #1f2937;
+  --bg-chip-neutral: #1e293b;
+
+  --border-default: #1f2937;
+  --border-strong: #334155;
+
+  --text-primary: #f1f5f9;
+  --text-body: #cbd5e1;
+  --text-secondary: #94a3b8;
+  --text-tertiary: rgba(226, 232, 240, 0.55);
+  --text-muted: #475569;
+
+  --brand: #818cf8;
+  --brand-hover: #a5b4fc;
+  --brand-bg: rgba(99, 102, 241, 0.15);
+  --brand-text-on-bg: #a5b4fc;
+
+  --platform-android-base: #4ade80;
+  --platform-android-bg: #064e3b;
+  --platform-android-text: #a7f3d0;
+
+  --platform-ios-base: #60a5fa;
+  --platform-ios-bg: #1e3a8a;
+  --platform-ios-text: #bfdbfe;
+
+  --platform-web-base: #818cf8;
+  --platform-web-bg: #312e81;
+  --platform-web-text: #c7d2fe;
+
+  --platform-plugin-base: #fbbf24;
+  --platform-plugin-bg: #451a03;
+  --platform-plugin-text: #fde68a;
+
+  --state-force-base: #f87171;
+  --state-force-bg: #450a0a;
+  --state-force-text: #fca5a5;
+
+  --cat-added-icon: #4ade80;
+  --cat-added-bg: #14532d;
+  --cat-added-text: #86efac;
+
+  --cat-fixed-icon: #fb923c;
+  --cat-fixed-bg: rgba(249, 115, 22, 0.12);
+  --cat-fixed-text: #fdba74;
+
+  --cat-changed-icon: #818cf8;
+  --cat-changed-bg: #172554;
+  --cat-changed-text: #93c5fd;
+
+  --cat-removed-icon: #f87171;
+  --cat-removed-bg: #450a0a;
+  --cat-removed-text: #fca5a5;
+
+  --cat-security-icon: #a78bfa;
+  --cat-security-bg: #2e1065;
+  --cat-security-text: #c4b5fd;
+
+  --cat-other-icon: #94a3b8;
+  --cat-other-bg: rgba(148, 163, 184, 0.12);
+  --cat-other-text: #cbd5e1;
+
+  --sev-major-bg: #450a0a;
+  --sev-major-text: #fca5a5;
+  --sev-initial-bg: #1e1b4b;
+  --sev-initial-text: #c7d2fe;
+  --sev-prerelease-bg: rgba(245, 158, 11, 0.12);
+  --sev-prerelease-text: #fbbf24;
+
+  --heatmap-0: #1e293b;
+  --heatmap-1: #3730a3;
+  --heatmap-2: #6366f1;
+  --heatmap-3: #818cf8;
+  --heatmap-4: #c7d2fe;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3),
+                 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  --header-bg: rgba(11, 18, 32, 0.85);
+
+  --heatmap-cell-shadow: none;
+
+  --tabs-ink-active: #a5b4fc;
+  --tabs-ink-inactive: rgba(226, 232, 240, 0.65);
+  --tabs-ink-hover: rgba(226, 232, 240, 0.95);
+  --tabs-indicator: #818cf8;
+  --tabs-divider: rgba(148, 163, 184, 0.12);
+
+  --spotlight-bg: linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, rgba(30, 41, 59, 0.6) 100%);
+  --spotlight-border: rgba(129, 140, 248, 0.22);
+  --spotlight-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+
+  --timeline-rail: rgba(148, 163, 184, 0.15);
+  --timeline-dot-border: #64748b;
+  --timeline-dot-glow: rgba(100, 116, 139, 0.2);
+
+  --divider-item: rgba(148, 163, 184, 0.08);
+
+  --text-section-label: rgba(203, 213, 225, 0.7);
+
+  --sev-minor-bg: rgba(59, 130, 246, 0.12);
+  --sev-minor-text: #93c5fd;
+  --sev-patch-bg: rgba(148, 163, 184, 0.1);
+  --sev-patch-text: #94a3b8;
+
+  --platform-ios-bg: rgba(96, 165, 250, 0.12);
+  --platform-ios-text: #93c5fd;
+  --platform-ios-base: #60a5fa;
+
+  --platform-web-bg: rgba(99, 102, 241, 0.12);
+  --platform-web-text: #a5b4fc;
+  --platform-web-base: #818cf8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg-page: #0b1220;
+    --bg-surface: #111827;
+    --bg-subtle: #1e293b;
+    --bg-hover: #1f2937;
+    --bg-chip-neutral: #1e293b;
+
+    --border-default: #1f2937;
+    --border-strong: #334155;
+
+    --text-primary: #f1f5f9;
+    --text-body: #cbd5e1;
+    --text-secondary: #94a3b8;
+    --text-tertiary: rgba(226, 232, 240, 0.55);
+    --text-muted: #475569;
+
+    --brand: #818cf8;
+    --brand-hover: #a5b4fc;
+    --brand-bg: rgba(99, 102, 241, 0.15);
+    --brand-text-on-bg: #a5b4fc;
+
+    --platform-android-base: #4ade80;
+    --platform-android-bg: #064e3b;
+    --platform-android-text: #a7f3d0;
+
+    --platform-ios-base: #60a5fa;
+    --platform-ios-bg: #1e3a8a;
+    --platform-ios-text: #bfdbfe;
+
+    --platform-web-base: #818cf8;
+    --platform-web-bg: #312e81;
+    --platform-web-text: #c7d2fe;
+
+    --platform-plugin-base: #fbbf24;
+    --platform-plugin-bg: #451a03;
+    --platform-plugin-text: #fde68a;
+
+    --state-force-base: #f87171;
+    --state-force-bg: #450a0a;
+    --state-force-text: #fca5a5;
+
+    --cat-added-icon: #4ade80;
+    --cat-added-bg: #14532d;
+    --cat-added-text: #86efac;
+
+    --cat-fixed-icon: #fb923c;
+    --cat-fixed-bg: rgba(249, 115, 22, 0.12);
+    --cat-fixed-text: #fdba74;
+
+    --cat-changed-icon: #818cf8;
+    --cat-changed-bg: #172554;
+    --cat-changed-text: #93c5fd;
+
+    --cat-removed-icon: #f87171;
+    --cat-removed-bg: #450a0a;
+    --cat-removed-text: #fca5a5;
+
+    --cat-security-icon: #a78bfa;
+    --cat-security-bg: #2e1065;
+    --cat-security-text: #c4b5fd;
+
+    --cat-other-icon: #94a3b8;
+    --cat-other-bg: rgba(148, 163, 184, 0.12);
+    --cat-other-text: #cbd5e1;
+
+    --sev-major-bg: #450a0a;
+    --sev-major-text: #fca5a5;
+    --sev-initial-bg: #1e1b4b;
+    --sev-initial-text: #c7d2fe;
+    --sev-prerelease-bg: rgba(245, 158, 11, 0.12);
+    --sev-prerelease-text: #fbbf24;
+
+    --heatmap-0: #1e293b;
+    --heatmap-1: #3730a3;
+    --heatmap-2: #6366f1;
+    --heatmap-3: #818cf8;
+    --heatmap-4: #c7d2fe;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3),
+                   0 4px 16px rgba(0, 0, 0, 0.4);
+
+    --header-bg: rgba(11, 18, 32, 0.85);
+
+    --heatmap-cell-shadow: none;
+
+    --tabs-ink-active: #a5b4fc;
+    --tabs-ink-inactive: rgba(226, 232, 240, 0.65);
+    --tabs-ink-hover: rgba(226, 232, 240, 0.95);
+    --tabs-indicator: #818cf8;
+    --tabs-divider: rgba(148, 163, 184, 0.12);
+
+    --spotlight-bg: linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, rgba(30, 41, 59, 0.6) 100%);
+    --spotlight-border: rgba(129, 140, 248, 0.22);
+    --spotlight-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+
+    --timeline-rail: rgba(148, 163, 184, 0.15);
+    --timeline-dot-border: #64748b;
+    --timeline-dot-glow: rgba(100, 116, 139, 0.2);
+
+    --divider-item: rgba(148, 163, 184, 0.08);
+
+    --text-section-label: rgba(203, 213, 225, 0.7);
+
+    --sev-minor-bg: rgba(59, 130, 246, 0.12);
+    --sev-minor-text: #93c5fd;
+    --sev-patch-bg: rgba(148, 163, 184, 0.1);
+    --sev-patch-text: #94a3b8;
+
+    --platform-ios-bg: rgba(96, 165, 250, 0.12);
+    --platform-ios-text: #93c5fd;
+    --platform-ios-base: #60a5fa;
+
+    --platform-web-bg: rgba(99, 102, 241, 0.12);
+    --platform-web-text: #a5b4fc;
+    --platform-web-base: #818cf8;
+  }
+}

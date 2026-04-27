@@ -1,0 +1,53 @@
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # TLS 在 CLB 终结,后端收到的是 HTTP,关掉 Location 的协议展开,
+    # 浏览器会用当前请求的协议(https)做 301 目标,避免 http→https 的多一跳
+    absolute_redirect off;
+
+    # /admin 入口统一重定向到 /admin/
+    location = /admin {
+        return 301 /admin/;
+    }
+
+    # /space 短链重定向到 /admin/space(便于空间管理员直链分享)
+    location = /space {
+        return 301 /admin/space;
+    }
+    location /space/ {
+        rewrite ^/space/(.*)$ /admin/space/$1 permanent;
+    }
+
+    # 管理后台 SPA:所有子路径回落到 /admin/index.html
+    location /admin/ {
+        try_files $uri $uri/ /admin/index.html;
+    }
+
+    # /changelog 公开页入口
+    location = /changelog {
+        return 301 /changelog/;
+    }
+
+    # 版本公告:复用 admin 的 bundle,通过 App.tsx 里的 pathname 检测走 Changelog
+    # 路由树;所有深路径都回落到 /admin/index.html(里面的资源路径是绝对 /admin/*)
+    location /changelog/ {
+        try_files $uri $uri/ /admin/index.html;
+    }
+
+    # HTML 不缓存,防止升级后卡旧 bundle
+    location ~* /admin/.*\.html$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        try_files $uri =404;
+    }
+
+    # API 反代:/api/v1/... 剥掉 /api/ 前缀打到后端
+    location /api/ {
+        set $backend "${API_BACKEND}";
+        proxy_pass http://$backend/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
