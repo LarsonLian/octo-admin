@@ -47,11 +47,25 @@ interface AppVersion {
   created_at: string
 }
 
+const ChromeIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" style={{ verticalAlign: '-0.125em' }}>
+    {/* Red segment: 270°→30° (top to lower-right) */}
+    <path d="M12 2 A10 10 0 0 1 20.66 17 L16.33 14.5 A5 5 0 0 0 12 7 Z" fill="#EA4335"/>
+    {/* Yellow segment: 30°→150° (lower-right to lower-left) */}
+    <path d="M20.66 17 A10 10 0 0 1 3.34 17 L7.67 14.5 A5 5 0 0 0 16.33 14.5 Z" fill="#FBBC05"/>
+    {/* Green segment: 150°→270° (lower-left to top) */}
+    <path d="M3.34 17 A10 10 0 0 1 12 2 L12 7 A5 5 0 0 0 7.67 14.5 Z" fill="#34A853"/>
+    <circle cx="12" cy="12" r="4.8" fill="white"/>
+    <circle cx="12" cy="12" r="4" fill="#4285F4"/>
+  </svg>
+)
+
 const platformConfig: Record<string, { label: string; icon: React.ReactNode; color: string; colorDark: string }> = {
   android: { label: 'Android', icon: <AndroidOutlined />, color: '#22c55e', colorDark: '#4ade80' },
   ios: { label: 'iOS', icon: <AppleOutlined />, color: '#334155', colorDark: '#cbd5e1' },
   web: { label: 'Web', icon: <GlobalOutlined />, color: '#0ea5e9', colorDark: '#38bdf8' },
   'openclaw-plugin': { label: 'OpenClaw Plugin', icon: <ApiOutlined />, color: '#f97316', colorDark: '#fb923c' },
+  chrome: { label: 'Chrome 扩展', icon: <ChromeIcon />, color: '#4285f4', colorDark: '#60a5fa' },
 }
 
 const webPlatforms = new Set(['windows', 'macos', 'linux', 'web'])
@@ -62,6 +76,7 @@ const tabItems = [
   { key: 'android', label: 'Android', icon: <AndroidOutlined />, color: '#22c55e', colorDark: '#4ade80' },
   { key: 'ios', label: 'iOS', icon: <AppleOutlined />, color: '#334155', colorDark: '#cbd5e1' },
   { key: 'openclaw-plugin', label: 'OpenClaw Plugin', icon: <ApiOutlined />, color: '#f97316', colorDark: '#fb923c' },
+  { key: 'chrome', label: 'Chrome 扩展', icon: <ChromeIcon />, color: '#4285f4', colorDark: '#60a5fa' },
 ]
 
 const css = `
@@ -912,7 +927,9 @@ export default function Changelog() {
         ? data.filter((v) => webPlatforms.has(v.os))
         : activePlatform === 'openclaw-plugin'
           ? data.filter((v) => v.os === 'openclaw-plugin')
-          : data.filter((v) => v.os === activePlatform)
+          : activePlatform === 'chrome'
+            ? data.filter((v) => v.os === 'chrome')
+            : data.filter((v) => v.os === activePlatform)
 
     const result: AppVersion[] = []
     for (const item of raw) {

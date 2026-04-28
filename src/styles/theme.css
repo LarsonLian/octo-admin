@@ -36,6 +36,10 @@
   --platform-plugin-bg: #fffbeb;
   --platform-plugin-text: #92400e;
 
+  --platform-chrome-base: #4285f4;
+  --platform-chrome-bg: #eff6ff;
+  --platform-chrome-text: #1d4ed8;
+
   --state-force-base: #ef4444;
   --state-force-bg: #fef2f2;
   --state-force-text: #991b1b;
@@ -145,6 +149,10 @@
   --platform-plugin-base: #fbbf24;
   --platform-plugin-bg: #451a03;
   --platform-plugin-text: #fde68a;
+
+  --platform-chrome-base: #60a5fa;
+  --platform-chrome-bg: rgba(66, 133, 244, 0.12);
+  --platform-chrome-text: #93c5fd;
 
   --state-force-base: #f87171;
   --state-force-bg: #450a0a;
@@ -342,5 +350,9 @@
     --platform-web-bg: rgba(99, 102, 241, 0.12);
     --platform-web-text: #a5b4fc;
     --platform-web-base: #818cf8;
+
+    --platform-chrome-base: #60a5fa;
+    --platform-chrome-bg: rgba(66, 133, 244, 0.12);
+    --platform-chrome-text: #93c5fd;
   }
 }
