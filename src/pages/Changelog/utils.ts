@@ -1,15 +1,23 @@
 export type ChangeCategory = 'security' | 'removed' | 'fixed' | 'added' | 'changed' | 'other'
 
-export interface ParsedChanges {
-  added: string[]
-  fixed: string[]
-  changed: string[]
-  removed: string[]
-  security: string[]
-  other: string[]
+export interface ChangeItem {
+  text: string
+  group?: string
 }
 
-const SECTION_HEADING = /^【.+?】$/
+export interface ParsedChanges {
+  added: ChangeItem[]
+  fixed: ChangeItem[]
+  changed: ChangeItem[]
+  removed: ChangeItem[]
+  security: ChangeItem[]
+  other: ChangeItem[]
+}
+
+const SECTION_HEADING = /^【(.+?)】$/
+const MD_HEADING = /^#{1,6}\s+(.+?)\s*$/
+const BOLD_ONLY_LINE = /^\*\*(.+?)\*\*\s*$/
+const HR_LINE = /^(?:-{3,}|\*{3,}|_{3,})$/
 
 const ENGLISH_SECTION: Record<string, ChangeCategory> = {
   added: 'added',
@@ -18,6 +26,14 @@ const ENGLISH_SECTION: Record<string, ChangeCategory> = {
   removed: 'removed',
   security: 'security',
   deprecated: 'removed',
+}
+
+function stripInlineMarkdown(line: string): string {
+  return line
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .trim()
 }
 
 const CATEGORY_PATTERNS: [ChangeCategory, RegExp][] = [
@@ -47,35 +63,78 @@ export function parseUpdateDesc(desc: string): ParsedChanges {
 
   const lines = desc
     .split('\n')
-    .map((line) => line.replace(/^\s*[-•*+]+\s*[-•*+]*\s*/, '').trim())
-    .filter((line) => line && !CONTRIBUTORS_PATTERN.test(line))
+    .map((line) => line.replace(/^\s*(?:[-•+]|\*(?!\*))\s+/, '').trim())
+    .filter((line) => line && !CONTRIBUTORS_PATTERN.test(line) && !HR_LINE.test(line))
 
   let currentSection: ChangeCategory | null = null
+  let currentGroup: string | undefined
 
-  for (const line of lines) {
-    if (SECTION_HEADING.test(line)) {
-      const heading = line.slice(1, -1)
-      currentSection = classifyLine(heading)
+  const push = (cat: ChangeCategory, text: string) => {
+    result[cat].push({ text, group: currentGroup })
+  }
+
+  for (const raw of lines) {
+    const sectionMatch = SECTION_HEADING.exec(raw)
+    if (sectionMatch) {
+      currentSection = classifyLine(sectionMatch[1])
+      currentGroup = undefined
       continue
     }
 
-    const englishSection = ENGLISH_SECTION[line.toLowerCase()]
+    const mdHeadingMatch = MD_HEADING.exec(raw)
+    if (mdHeadingMatch) {
+      const heading = stripInlineMarkdown(mdHeadingMatch[1])
+      const cat = classifyLine(heading)
+      currentSection = cat !== 'other' ? cat : null
+      currentGroup = undefined
+      continue
+    }
+
+    const boldOnlyMatch = BOLD_ONLY_LINE.exec(raw)
+    if (boldOnlyMatch) {
+      const heading = boldOnlyMatch[1].trim()
+      const cat = classifyLine(heading)
+      if (cat !== 'other') {
+        currentSection = cat
+        currentGroup = undefined
+      } else {
+        // subsection label like **消息与会话** — keep as group within current section
+        currentGroup = heading
+      }
+      continue
+    }
+
+    const englishSection = ENGLISH_SECTION[raw.toLowerCase()]
     if (englishSection) {
       currentSection = englishSection
+      currentGroup = undefined
       continue
     }
+
+    const line = stripInlineMarkdown(raw)
+    if (!line) continue
 
     const isHeader = /^.+[：:]\s*$/.test(line)
     const cat = classifyLine(line)
+    const stripped = stripPrefix(line)
+
+    // bare keyword line like "新增" / "修复" — section header, not item
+    if (cat !== 'other' && !stripped) {
+      currentSection = cat
+      currentGroup = undefined
+      continue
+    }
+
     if (isHeader && cat !== 'other') {
       currentSection = cat
-    } else if (cat !== 'other') {
-      result[cat].push(stripPrefix(line))
-      currentSection = null
+      currentGroup = undefined
     } else if (currentSection) {
-      result[currentSection].push(stripPrefix(line))
+      // explicit section in effect — respect it, ignore per-line prefix classification
+      push(currentSection, stripped || line)
+    } else if (cat !== 'other') {
+      push(cat, stripped)
     } else {
-      result.other.push(line)
+      push('other', line)
     }
   }
 
