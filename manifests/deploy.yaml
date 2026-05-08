@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octo-admin-web-{{BRANCH}}
+  namespace: dmwork-{{BRANCH}}
+  labels:
+    app: octo-admin-web-{{BRANCH}}
+    env: "{{BRANCH}}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: octo-admin-web-{{BRANCH}}
+  template:
+    metadata:
+      labels:
+        app: octo-admin-web-{{BRANCH}}
+        env: "{{BRANCH}}"
+    spec:
+      imagePullSecrets:
+        - name: tcr-image-xtiao
+      containers:
+        - name: octo-admin-web-{{BRANCH}}
+          image: "{{REPO_URL}}:{{IMAGE_TAG}}"
+          ports:
+            - containerPort: 80
+          env:
+            - name: API_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: octo-admin-web-{{BRANCH}}-config
+                  key: API_BACKEND
+          livenessProbe:
+            httpGet:
+              path: /admin/
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /admin/
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: octo-admin-web-{{BRANCH}}
+  namespace: dmwork-{{BRANCH}}
+spec:
+  selector:
+    app: octo-admin-web-{{BRANCH}}
+  ports:
+    - port: 80
+      targetPort: 80
