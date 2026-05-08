@@ -431,7 +431,7 @@ export default function Spaces() {
         <Form
           form={createForm}
           layout="vertical"
-          initialValues={{ join_mode: 0, max_users: 10 }}
+          initialValues={{ join_mode: 0, max_users: 200 }}
           preserve={false}
         >
           <Form.Item
