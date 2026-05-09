@@ -552,13 +552,37 @@ function StructuredChanges({ desc }: { desc: string }) {
                       <span style={{ color: cfg.color.icon }}>{cfg.icon}</span>
                       {cfg.label}
                     </div>
-                    <ul style={{ margin: 0, paddingLeft: 20, listStyle: 'disc' }}>
-                      {parsed[key].map((line, i) => (
-                        <li key={i} style={{ color: colors.text.secondary, fontSize: font.size.base, lineHeight: 1.75 }}>
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
+                    {(() => {
+                      const items = parsed[key]
+                      const groups: { name?: string; items: typeof items }[] = []
+                      for (const it of items) {
+                        const last = groups[groups.length - 1]
+                        if (last && last.name === it.group) last.items.push(it)
+                        else groups.push({ name: it.group, items: [it] })
+                      }
+                      return groups.map((g, gi) => (
+                        <div key={gi} style={{ marginTop: gi > 0 ? space[2] : 0 }}>
+                          {g.name && (
+                            <div style={{
+                              fontSize: font.size.sm,
+                              fontWeight: font.weight.semibold,
+                              color: colors.text.secondary,
+                              marginTop: space[1],
+                              marginBottom: 2,
+                            }}>
+                              {g.name}
+                            </div>
+                          )}
+                          <ul style={{ margin: 0, paddingLeft: 20, listStyle: 'disc' }}>
+                            {g.items.map((it, i) => (
+                              <li key={i} style={{ color: colors.text.secondary, fontSize: font.size.base, lineHeight: 1.75 }}>
+                                {it.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))
+                    })()}
                   </div>
                 )
               })}
