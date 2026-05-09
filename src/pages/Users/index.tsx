@@ -10,7 +10,8 @@ interface User {
   uid: string
   name: string
   username: string
-  phone: string
+  phone?: string | null
+  email?: string | null
   status: number
   online: number
   is_destroy: number
@@ -115,6 +116,20 @@ export default function Users() {
       ),
     },
     {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      width: 200,
+      render: (v) => <span style={{ color: 'var(--a-text-tertiary)' }}>{v || '-'}</span>,
+    },
+    {
+      title: '手机号',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 140,
+      render: (v) => <span style={{ color: 'var(--a-text-tertiary)' }}>{v || '-'}</span>,
+    },
+    {
       title: '状态',
       key: 'status',
       width: 100,
@@ -159,7 +174,7 @@ export default function Users() {
       <p className="page-subtitle">管理真人与 AI 账号、处理封禁/解封流程</p>
       <div className="toolbar">
         <Input
-          placeholder="搜索 UID/手机号/用户名"
+          placeholder="搜索 UID/手机号/用户名/Email"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onPressEnter={handleSearch}
