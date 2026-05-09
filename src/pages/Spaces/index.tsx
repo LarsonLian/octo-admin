@@ -93,7 +93,7 @@ export default function Spaces() {
       )
       if (seq === userSearchSeq.current) {
         const list = (res.data.list || []).filter(
-          (u) => u.status === 1 && u.is_destroy !== 1 && !!(u.username || u.email || u.phone),
+          (u) => u.status === 1 && u.is_destroy !== 1 && !u.uid?.endsWith('_bot'),
         )
         setUserOptions(list)
       }
@@ -444,7 +444,7 @@ export default function Spaces() {
           >
             <Select
               showSearch
-              placeholder="按昵称 / 用户名 / UID 搜索"
+              placeholder="按昵称 / 用户名 / UID / Email / 手机号搜索"
               filterOption={false}
               onSearch={(v) => searchUsers(v.trim())}
               notFoundContent={userSearching ? <Spin size="small" /> : null}
