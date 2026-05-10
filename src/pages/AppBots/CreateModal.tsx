@@ -133,28 +133,6 @@ export default function CreateModal({ open, spaceId, onClose, onSuccess }: Props
         <Form.Item name="description" label="描述">
           <Input.TextArea placeholder="智能工作助手，支持..." maxLength={500} rows={3} />
         </Form.Item>
-        <Form.Item
-          name="avatar"
-          label="头像 URL"
-          rules={[
-            {
-              validator: (_, value) => {
-                if (!value) return Promise.resolve()
-                try {
-                  const url = new URL(value)
-                  if (url.protocol === 'http:' || url.protocol === 'https:') {
-                    return Promise.resolve()
-                  }
-                  return Promise.reject(new Error('仅支持 http/https 协议'))
-                } catch {
-                  return Promise.reject(new Error('请输入有效的 URL'))
-                }
-              },
-            },
-          ]}
-        >
-          <Input placeholder="https://..." />
-        </Form.Item>
         <Form.Item name="welcome_msg" label="欢迎语" extra="用户首次连接时自动发送的消息，留空则使用默认提示">
           <Input.TextArea placeholder="你好！我是 xx 助手，有什么可以帮你的？" maxLength={500} rows={2} />
         </Form.Item>

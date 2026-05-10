@@ -22,6 +22,7 @@ import {
   publishSpaceAppBot,
   unpublishAppBot,
   unpublishSpaceAppBot,
+  botAvatarUrl,
   type AppBot,
   type AppBotStatus,
 } from '../../api/app-bot'
@@ -60,7 +61,12 @@ export default function AppBotsPage({ spaceId }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [editBot, setEditBot] = useState<AppBot | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [avatarVersionMap, setAvatarVersionMap] = useState<Record<string, number>>({})
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+
+  const handleAvatarUploaded = (uid: string) => {
+    setAvatarVersionMap((prev) => ({ ...prev, [uid]: Date.now() }))
+  }
 
   // Debounce keyword input
   useEffect(() => {
@@ -129,8 +135,8 @@ export default function AppBotsPage({ spaceId }: Props) {
       render: (_, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Avatar
-            src={record.avatar || undefined}
-            icon={!record.avatar ? <RobotOutlined /> : undefined}
+            src={botAvatarUrl(record.uid, avatarVersionMap[record.uid])}
+            icon={<RobotOutlined />}
             size={36}
             style={{ background: '#6366f1', flexShrink: 0 }}
           />
@@ -263,6 +269,7 @@ export default function AppBotsPage({ spaceId }: Props) {
         open={!!editBot}
         onClose={() => setEditBot(null)}
         onSuccess={() => { setEditBot(null); fetchList() }}
+        onAvatarUploaded={handleAvatarUploaded}
       />
 
       <DetailDrawer
@@ -270,6 +277,7 @@ export default function AppBotsPage({ spaceId }: Props) {
         spaceId={spaceId}
         open={!!detailId}
         onClose={() => setDetailId(null)}
+        onAvatarUploaded={handleAvatarUploaded}
       />
     </div>
   )

@@ -30,7 +30,6 @@ export interface AppBotCreateReq {
   id: string
   display_name: string
   description?: string
-  avatar?: string
   welcome_msg?: string
 }
 
@@ -43,7 +42,6 @@ export interface AppBotCreateResp {
 export interface AppBotUpdateReq {
   display_name?: string
   description?: string
-  avatar?: string
   welcome_msg?: string
 }
 
@@ -119,3 +117,33 @@ export const publishSpaceAppBot = (spaceId: string, id: string): Promise<void> =
 
 export const unpublishSpaceAppBot = (spaceId: string, id: string): Promise<void> =>
   api.post(`/v1/space/${spaceId}/app_bot/${id}/unpublish`).then(() => undefined)
+
+// --- Avatar Upload ---
+
+// --- Avatar ---
+
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+
+/**
+ * Build the avatar URL for an App Bot UID.
+ * Only appends cache-bust param when explicitly provided (e.g. after upload).
+ * Without cacheBust the URL is stable, allowing browser cache to work normally.
+ */
+export function botAvatarUrl(uid: string, cacheBust?: number): string {
+  const base = `${API_BASE}/v1/users/${encodeURIComponent(uid)}/avatar`
+  return cacheBust ? `${base}?v=${cacheBust}` : base
+}
+
+/**
+ * Upload avatar for an App Bot.
+ * Reuses the existing POST /users/{uid}/avatar endpoint.
+ * The backend checks app_bot table for permission (superAdmin for platform, spaceAdmin for space).
+ *
+ * Note: token header is injected by axios request interceptor (api/index.ts).
+ * Content-Type is auto-set by axios when body is FormData (includes boundary).
+ */
+export const uploadAppBotAvatar = async (botUid: string, file: File): Promise<void> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  await api.post(`/v1/users/${encodeURIComponent(botUid)}/avatar`, formData)
+}

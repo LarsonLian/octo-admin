@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Drawer, Descriptions, Tag, Button, Typography, Space, Popconfirm, message } from 'antd'
-import { CopyOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Drawer, Descriptions, Tag, Button, Typography, Space, Popconfirm, Avatar, Upload, message } from 'antd'
+import { CopyOutlined, ReloadOutlined, CameraOutlined, LoadingOutlined, RobotOutlined } from '@ant-design/icons'
 import {
   getAppBot,
   getSpaceAppBot,
@@ -8,6 +8,8 @@ import {
   rotateSpaceAppBotToken,
   revealAppBotToken,
   revealSpaceAppBotToken,
+  uploadAppBotAvatar,
+  botAvatarUrl,
   type AppBot,
   type AppBotStatus,
 } from '../../api/app-bot'
@@ -17,6 +19,7 @@ interface Props {
   spaceId?: string
   open: boolean
   onClose: () => void
+  onAvatarUploaded?: (uid: string) => void
 }
 
 const STATUS_MAP: Record<AppBotStatus, { label: string; color: string }> = {
@@ -56,12 +59,14 @@ function getApiUrl(): string {
 
 const TOKEN_AUTO_HIDE_MS = 30_000
 
-export default function DetailDrawer({ botId, spaceId, open, onClose }: Props) {
+export default function DetailDrawer({ botId, spaceId, open, onClose, onAvatarUploaded }: Props) {
   const [bot, setBot] = useState<AppBot | null>(null)
   const [loading, setLoading] = useState(false)
   const [tokenVisible, setTokenVisible] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [rotating, setRotating] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarVersion, setAvatarVersion] = useState(Date.now)
   const autoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -70,6 +75,9 @@ export default function DetailDrawer({ botId, spaceId, open, onClose }: Props) {
       setTokenVisible(false)
       return
     }
+
+    // Reset avatar cache-bust when opening a different (or same) bot
+    setAvatarVersion(Date.now())
 
     let stale = false
     setLoading(true)
@@ -156,6 +164,58 @@ export default function DetailDrawer({ botId, spaceId, open, onClose }: Props) {
     >
       {bot && (
         <>
+          {/* Avatar display + upload */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Upload
+              accept="image/*"
+              showUploadList={false}
+              beforeUpload={async (file) => {
+                setUploadingAvatar(true)
+                try {
+                  await uploadAppBotAvatar(bot.uid, file as File)
+                  message.success('头像已更新')
+                  setAvatarVersion(Date.now())
+                  onAvatarUploaded?.(bot.uid)
+                } catch (err) {
+                  if (err instanceof Error) message.error(err.message)
+                } finally {
+                  setUploadingAvatar(false)
+                }
+                return false
+              }}
+              disabled={uploadingAvatar}
+            >
+              <div
+                style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
+                title="点击上传头像"
+              >
+                <Avatar
+                  src={botAvatarUrl(bot.uid, avatarVersion)}
+                  icon={<RobotOutlined />}
+                  size={80}
+                  style={{ background: '#6366f1' }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    background: '#fff',
+                    borderRadius: '50%',
+                    padding: 4,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                    lineHeight: 1,
+                  }}
+                >
+                  {uploadingAvatar
+                    ? <LoadingOutlined style={{ fontSize: 14 }} />
+                    : <CameraOutlined style={{ fontSize: 14, color: '#6366f1' }} />}
+                </div>
+              </div>
+            </Upload>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>点击更换头像</div>
+          </div>
+
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="ID">{bot.id}</Descriptions.Item>
             <Descriptions.Item label="UID">{bot.uid}</Descriptions.Item>

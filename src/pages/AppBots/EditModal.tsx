@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Modal, Form, Input, message } from 'antd'
+import { Modal, Form, Input, Avatar, Upload, message } from 'antd'
+import { CameraOutlined, LoadingOutlined, RobotOutlined } from '@ant-design/icons'
 import {
   updateAppBot,
   updateSpaceAppBot,
+  uploadAppBotAvatar,
+  botAvatarUrl,
   type AppBot,
   type AppBotUpdateReq,
 } from '../../api/app-bot'
@@ -13,20 +16,23 @@ interface Props {
   open: boolean
   onClose: () => void
   onSuccess: () => void
+  onAvatarUploaded?: (uid: string) => void
 }
 
-export default function EditModal({ bot, spaceId, open, onClose, onSuccess }: Props) {
+export default function EditModal({ bot, spaceId, open, onClose, onSuccess, onAvatarUploaded }: Props) {
   const [form] = Form.useForm<AppBotUpdateReq>()
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [avatarVersion, setAvatarVersion] = useState(Date.now)
 
   useEffect(() => {
     if (open && bot) {
       form.setFieldsValue({
         display_name: bot.display_name,
         description: bot.description,
-        avatar: bot.avatar,
         welcome_msg: bot.welcome_msg,
       })
+      setAvatarVersion(Date.now())
     }
   }, [open, bot, form])
 
@@ -47,6 +53,22 @@ export default function EditModal({ bot, spaceId, open, onClose, onSuccess }: Pr
     }
   }
 
+  const handleAvatarUpload = async (file: File) => {
+    if (!bot) return false
+    setUploading(true)
+    try {
+      await uploadAppBotAvatar(bot.uid, file)
+      message.success('头像已更新')
+      setAvatarVersion(Date.now())
+      onAvatarUploaded?.(bot.uid)
+    } catch (err) {
+      if (err instanceof Error) message.error(err.message)
+    } finally {
+      setUploading(false)
+    }
+    return false // prevent antd default upload behavior
+  }
+
   return (
     <Modal
       title={`编辑 ${bot?.display_name || ''}`}
@@ -56,6 +78,45 @@ export default function EditModal({ bot, spaceId, open, onClose, onSuccess }: Pr
       confirmLoading={loading}
       destroyOnClose
     >
+      {/* Avatar upload */}
+      {bot && (
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <Upload
+            accept="image/*"
+            showUploadList={false}
+            beforeUpload={handleAvatarUpload}
+            disabled={uploading}
+          >
+            <div
+              style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
+              title="点击上传头像"
+            >
+              <Avatar
+                src={botAvatarUrl(bot.uid, avatarVersion)}
+                icon={<RobotOutlined />}
+                size={80}
+                style={{ background: '#6366f1' }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  background: '#fff',
+                  borderRadius: '50%',
+                  padding: 4,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                  lineHeight: 1,
+                }}
+              >
+                {uploading ? <LoadingOutlined style={{ fontSize: 14 }} /> : <CameraOutlined style={{ fontSize: 14, color: '#6366f1' }} />}
+              </div>
+            </div>
+          </Upload>
+          <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>点击更换头像</div>
+        </div>
+      )}
+
       <Form form={form} layout="vertical" autoComplete="off">
         <Form.Item
           name="display_name"
@@ -66,28 +127,6 @@ export default function EditModal({ bot, spaceId, open, onClose, onSuccess }: Pr
         </Form.Item>
         <Form.Item name="description" label="描述">
           <Input.TextArea maxLength={500} rows={3} />
-        </Form.Item>
-        <Form.Item
-          name="avatar"
-          label="头像 URL"
-          rules={[
-            {
-              validator: (_, value) => {
-                if (!value) return Promise.resolve()
-                try {
-                  const url = new URL(value)
-                  if (url.protocol === 'http:' || url.protocol === 'https:') {
-                    return Promise.resolve()
-                  }
-                  return Promise.reject(new Error('仅支持 http/https 协议'))
-                } catch {
-                  return Promise.reject(new Error('请输入有效的 URL'))
-                }
-              },
-            },
-          ]}
-        >
-          <Input placeholder="https://..." />
         </Form.Item>
         <Form.Item name="welcome_msg" label="欢迎语" extra="用户首次连接时自动发送的消息，留空则使用默认提示">
           <Input.TextArea placeholder="你好！我是 xx 助手，有什么可以帮你的？" maxLength={500} rows={2} />
