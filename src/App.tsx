@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
+import { useFeatureStore } from './store/feature'
 import MainLayout from './layouts/MainLayout'
 import AdminThemeProvider from './layouts/AdminThemeProvider'
 import Login from './pages/Login'
@@ -26,6 +27,20 @@ function SpaceOnlyRoute({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, scope } = useAuthStore()
   if (!isLoggedIn || scope !== 'space') return <Navigate to="/space" replace />
   return <>{children}</>
+}
+
+// 后端 GET /v1/app_bot/available 探测未通过时，重定向到回退路径。
+// 探测尚未完成（null）时返回 null 避免闪烁。
+function AppBotsGate({ fallback, children }: { fallback: string; children: React.ReactNode }) {
+  const appBotsAvailable = useFeatureStore((s) => s.appBotsAvailable)
+  if (appBotsAvailable === null) return null
+  if (!appBotsAvailable) return <Navigate to={fallback} replace />
+  return <>{children}</>
+}
+
+function SpaceAppBotsGate({ children }: { children: React.ReactNode }) {
+  const { spaceId } = useParams<{ spaceId: string }>()
+  return <AppBotsGate fallback={`/space/${spaceId}/members`}>{children}</AppBotsGate>
 }
 
 /**
@@ -72,7 +87,14 @@ function AdminRoutes() {
         <Route path="members" element={<MembersTab />} />
         <Route path="invites" element={<InvitesTab />} />
         <Route path="join-applies" element={<JoinAppliesTab />} />
-        <Route path="app-bots" element={<AppBotsTab />} />
+        <Route
+          path="app-bots"
+          element={
+            <SpaceAppBotsGate>
+              <AppBotsTab />
+            </SpaceAppBotsGate>
+          }
+        />
       </Route>
       <Route
         path="/"
@@ -91,7 +113,14 @@ function AdminRoutes() {
         <Route path="spaces" element={<Spaces />} />
         <Route path="backup" element={<Backup />} />
         <Route path="download" element={<Download />} />
-        <Route path="app-bots" element={<AppBots />} />
+        <Route
+          path="app-bots"
+          element={
+            <AppBotsGate fallback="/dashboard">
+              <AppBots />
+            </AppBotsGate>
+          }
+        />
       </Route>
     </Routes>
   )

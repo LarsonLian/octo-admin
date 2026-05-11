@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   Layout,
@@ -20,6 +20,7 @@ import {
   ArrowLeftOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../../store/auth'
+import { useFeatureStore } from '../../store/feature'
 import { useTheme, type Theme } from '../../hooks/useTheme'
 import {
   getMySpaces,
@@ -43,8 +44,8 @@ const themeLabel: Record<Theme, string> = {
   auto: '跟随系统',
 }
 
-const TAB_KEYS = ['members', 'invites', 'join-applies', 'app-bots'] as const
-type TabKey = (typeof TAB_KEYS)[number]
+const BASE_TAB_KEYS = ['members', 'invites', 'join-applies'] as const
+type TabKey = (typeof BASE_TAB_KEYS)[number] | 'app-bots'
 
 const TAB_LABEL: Record<TabKey, string> = {
   members: '成员',
@@ -53,9 +54,9 @@ const TAB_LABEL: Record<TabKey, string> = {
   'app-bots': '应用 Bot',
 }
 
-function currentTabFromPath(pathname: string): TabKey {
+function currentTabFromPath(pathname: string, visible: readonly TabKey[]): TabKey {
   const seg = pathname.split('/').pop() as TabKey
-  return TAB_KEYS.includes(seg) ? seg : 'members'
+  return visible.includes(seg) ? seg : 'members'
 }
 
 export default function SpaceAdminLayout() {
@@ -64,7 +65,21 @@ export default function SpaceAdminLayout() {
   const { spaceId } = useParams<{ spaceId: string }>()
   const { name, mySpaces, currentSpaceId, setCurrentSpaceId, setMySpaces, logout } =
     useAuthStore()
+  const appBotsAvailable = useFeatureStore((s) => s.appBotsAvailable)
+  const probeAppBots = useFeatureStore((s) => s.probeAppBots)
   const { theme, effective, setTheme } = useTheme()
+
+  useEffect(() => {
+    void probeAppBots()
+  }, [probeAppBots])
+
+  const visibleTabKeys = useMemo<readonly TabKey[]>(
+    () =>
+      appBotsAvailable === true
+        ? [...BASE_TAB_KEYS, 'app-bots']
+        : [...BASE_TAB_KEYS],
+    [appBotsAvailable],
+  )
   const [detail, setDetail] = useState<SpaceUserDetail | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -118,7 +133,7 @@ export default function SpaceAdminLayout() {
     onClick: () => setTheme(t),
   }))
 
-  const activeTab = currentTabFromPath(location.pathname)
+  const activeTab = currentTabFromPath(location.pathname, visibleTabKeys)
 
   if (mySpaces.length === 0) {
     return (
@@ -294,7 +309,7 @@ export default function SpaceAdminLayout() {
             <Tabs
               activeKey={activeTab}
               onChange={(k) => navigate(`/space/${spaceId}/${k}`)}
-              items={TAB_KEYS.map((k) => ({ key: k, label: TAB_LABEL[k] }))}
+              items={visibleTabKeys.map((k) => ({ key: k, label: TAB_LABEL[k] }))}
               destroyInactiveTabPane
               tabBarStyle={{ marginBottom: 16 }}
             />
