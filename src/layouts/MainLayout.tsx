@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Dropdown, Tooltip, Breadcrumb } from 'antd'
 import type { MenuProps } from 'antd'
@@ -18,17 +18,28 @@ import {
   RobotOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../store/auth'
+import { useFeatureStore } from '../store/feature'
 import { useTheme } from '../hooks/useTheme'
 import type { Theme } from '../hooks/useTheme'
 
 const { Header, Sider, Content } = Layout
 
-const menuItems: NonNullable<MenuProps['items']> = [
+type MenuItem = { key: string; icon: React.ReactNode; label: string }
+
+const baseMenuItems: MenuItem[] = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
   { key: '/groups', icon: <TeamOutlined />, label: '群组管理' },
   { key: '/spaces', icon: <AppstoreOutlined />, label: 'Space 管理' },
-  { key: '/app-bots', icon: <RobotOutlined />, label: '应用 Bot' },
+]
+
+const appBotMenuItem: MenuItem = {
+  key: '/app-bots',
+  icon: <RobotOutlined />,
+  label: '应用 Bot',
+}
+
+const tailMenuItems: MenuItem[] = [
   { key: '/backup', icon: <CloudUploadOutlined />, label: '备份管理' },
   { key: '/download', icon: <DownloadOutlined />, label: '下载配置' },
 ]
@@ -51,6 +62,20 @@ const MainLayout: React.FC = () => {
   const location = useLocation()
   const { name, logout } = useAuthStore()
   const { theme, effective, setTheme } = useTheme()
+  const appBotsAvailable = useFeatureStore((s) => s.appBotsAvailable)
+  const probeAppBots = useFeatureStore((s) => s.probeAppBots)
+
+  useEffect(() => {
+    void probeAppBots()
+  }, [probeAppBots])
+
+  const menuItems = useMemo<MenuItem[]>(
+    () =>
+      appBotsAvailable === true
+        ? [...baseMenuItems, appBotMenuItem, ...tailMenuItems]
+        : [...baseMenuItems, ...tailMenuItems],
+    [appBotsAvailable],
+  )
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key)
@@ -61,10 +86,7 @@ const MainLayout: React.FC = () => {
     navigate('/login')
   }
 
-  const activeItem = menuItems.find(
-    (item): item is { key: string; icon: React.ReactNode; label: string } =>
-      !!item && 'key' in item && item.key === location.pathname,
-  )
+  const activeItem = menuItems.find((item) => item.key === location.pathname)
 
   const isDark = effective === 'dark'
   const surface = isDark ? '#14171f' : '#ffffff'
