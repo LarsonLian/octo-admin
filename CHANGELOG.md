@@ -1,0 +1,16 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Added
+- Initial open-source release under Apache 2.0
+- User, Space, Group, and App Bot management
+- Backup configuration and history UI
+- Changelog viewer with platform analytics
+- Download and release management
+- Dark mode with system-preference auto-detection

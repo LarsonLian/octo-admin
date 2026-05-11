@@ -277,7 +277,7 @@ export default function Backup() {
                 <InputNumber min={1} max={100} style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="data_dir" label="数据目录" rules={[{ required: true }]}>
-                <Input placeholder="/data/wukongim" />
+                <Input placeholder="/data/octo" />
               </Form.Item>
             </Form>
           </Card>
