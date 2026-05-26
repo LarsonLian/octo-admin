@@ -60,17 +60,17 @@ export default function InlineEditField(props: InlineEditFieldProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<string | number>(value ?? '')
   const [saving, setSaving] = useState(false)
-  const inputRef = useRef<HTMLElement | null>(null)
+  // antd 的 Input / InputNumber / TextArea ref 形状不一致，统一保留它们都暴露的 focus() 调用。
+  const focusRef = useRef<{ focus: () => void } | null>(null)
 
   useEffect(() => {
     if (editing) setDraft(value ?? '')
   }, [editing, value])
 
-  // 自动聚焦编辑控件
+  // 自动聚焦编辑控件（在 ref 设置之后的下一帧调用，确保 DOM 已挂载）
   useEffect(() => {
-    if (editing && inputRef.current && typeof inputRef.current.focus === 'function') {
-      // antd InputNumber/Input refs 类型不一致，统一兜底
-      ;(inputRef.current as HTMLInputElement).focus?.()
+    if (editing && focusRef.current) {
+      focusRef.current.focus()
     }
   }, [editing])
 
@@ -80,6 +80,8 @@ export default function InlineEditField(props: InlineEditFieldProps) {
   }
 
   const commit = async () => {
+    // 防止双击/快速重复回车在 React 状态落地前重入。
+    if (saving) return
     let next = draft
     if (props.kind === 'text' || props.kind === 'textarea') {
       next = typeof next === 'string' ? next.trim() : String(next ?? '')
@@ -177,8 +179,7 @@ export default function InlineEditField(props: InlineEditFieldProps) {
       <div className="inline-edit-textarea-wrap">
         <Input.TextArea
           ref={(el) => {
-            const ta = el as unknown as { resizableTextArea?: { textArea: HTMLElement } } | null
-            inputRef.current = ta?.resizableTextArea?.textArea ?? null
+            focusRef.current = el
           }}
           value={text}
           onChange={(e) => setDraft(e.target.value)}
@@ -219,7 +220,7 @@ export default function InlineEditField(props: InlineEditFieldProps) {
     control = (
       <Input
         ref={(el) => {
-          inputRef.current = el?.input ?? null
+          focusRef.current = el
         }}
         value={(draft as string) ?? ''}
         onChange={(e) => setDraft(e.target.value)}
@@ -237,7 +238,7 @@ export default function InlineEditField(props: InlineEditFieldProps) {
     control = (
       <InputNumber
         ref={(el) => {
-          inputRef.current = (el as unknown as { input: HTMLElement | null })?.input ?? null
+          focusRef.current = el
         }}
         value={typeof draft === 'number' ? draft : Number(draft) || 0}
         onChange={(v) => setDraft(typeof v === 'number' ? v : 0)}
@@ -245,12 +246,16 @@ export default function InlineEditField(props: InlineEditFieldProps) {
         onKeyDown={onKeyDown}
         min={props.min}
         max={props.max}
+        // 业务字段（如 max_users）语义上为整数；强制 0 位小数避免提交浮点导致服务端拒绝。
+        precision={0}
+        step={1}
         disabled={saving}
         size="small"
         style={{ width: 140 }}
       />
     )
   } else if (props.kind === 'select') {
+    // Radio.Group 不暴露稳定的 focus API；编辑态依靠 Tab 进入，自动聚焦留空即可。
     control = (
       <span onKeyDown={onKeyDown} style={{ display: 'inline-flex' }}>
         <Radio.Group

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Typography, Tooltip } from 'antd'
+import { Typography, Tooltip, message } from 'antd'
 import InlineEditField from './InlineEditField'
 import {
   updateSpaceProfile,
@@ -53,6 +53,7 @@ export default function SpaceInfoPanel({ space, onSpaceChange, onUpdated }: Prop
       [field]: value,
     } as Parameters<typeof updateSpaceProfile>[1])
     onSpaceChange({ ...space, [field]: value })
+    message.success('已保存')
     onUpdated?.()
   }
 

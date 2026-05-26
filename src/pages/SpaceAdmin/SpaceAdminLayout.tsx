@@ -103,12 +103,17 @@ export default function SpaceAdminLayout() {
     await updateSpaceUserProfile(detail.space_id, patch)
     const next = apply(detail)
     setDetail(next)
-    // 同步 mySpaces：name / logo 影响 SpaceSwitcher 显示，不同步则继续渲染旧值直到下次拉取 /space/my。
-    if (patch.name !== undefined || patch.logo !== undefined) {
+    // 同步 mySpaces：name / logo 影响 SpaceSwitcher 显示；join_mode 当前不渲染但属于 MySpace
+    // 类型字段，一并同步避免下游消费者拿到陈旧值。不同步则继续渲染旧值直到下次拉取 /space/my。
+    if (
+      patch.name !== undefined ||
+      patch.logo !== undefined ||
+      patch.join_mode !== undefined
+    ) {
       setMySpaces(
         mySpaces.map((s) =>
           s.space_id === next.space_id
-            ? { ...s, name: next.name, logo: next.logo }
+            ? { ...s, name: next.name, logo: next.logo, join_mode: next.join_mode }
             : s,
         ),
       )
