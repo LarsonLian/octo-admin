@@ -235,10 +235,37 @@ export default function InlineEditField(props: InlineEditFieldProps) {
       />
     )
   } else if (props.kind === 'number') {
-    // 非负整数（min >= 0）时连 '-' 一起剥离，杜绝非数字输入；
-    // 允许负值的场景才保留前导 '-'。小数点、字母、空格等始终拒。
+    // 非负整数（min >= 0）时连 '-' 一起拒；允许负值的场景才保留前导 '-'。
+    // 在 keydown 层 preventDefault 非数字键 —— antd 的 parser 只在 blur/Enter 触发，
+    // 不能阻止输入态下 "10aaaa" 这样的中间显示。
     const allowNegative = props.min === undefined || props.min < 0
-    // antd InputNumber 的 parser 期望返回 number；空输入回退到 0，避免 NaN 流入受控 value。
+    const maxCap = props.max
+    const onNumberKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+      // 通用 Esc/Enter 优先
+      onKeyDown(e)
+      if (e.defaultPrevented) return
+      // 修饰键组合（复制/粘贴/全选）放行
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      // 控制键（退格、方向键、Tab 等）放行
+      if (e.key.length > 1) return
+      const isDigit = e.key >= '0' && e.key <= '9'
+      const isNeg = allowNegative && e.key === '-'
+      if (!isDigit && !isNeg) {
+        e.preventDefault()
+        return
+      }
+      // 数字键：模拟插入后看是否会超 max；超则拦下，避免输入态显示越界数字。
+      if (isDigit && maxCap !== undefined) {
+        const input = e.target as HTMLInputElement
+        const start = input.selectionStart ?? input.value.length
+        const end = input.selectionEnd ?? start
+        const projected =
+          input.value.slice(0, start) + e.key + input.value.slice(end)
+        const num = Number(projected.replace(/[^\d]/g, '') || '0')
+        if (num > maxCap) e.preventDefault()
+      }
+    }
+    // 防御性：粘贴等非键盘路径补一道 parser，把残留非数字字符洗掉。
     const digitOnlyParser = (text: string | undefined): number => {
       const s = text ?? ''
       const stripped = allowNegative
@@ -254,9 +281,15 @@ export default function InlineEditField(props: InlineEditFieldProps) {
           focusRef.current = el
         }}
         value={typeof draft === 'number' ? draft : Number(draft) || 0}
-        onChange={(v) => setDraft(typeof v === 'number' ? v : 0)}
+        onChange={(v) => {
+          // 粘贴 / 系统级输入路径不会触发 keydown 拦截；这里再 clamp 一次兜底。
+          let n = typeof v === 'number' ? v : 0
+          if (props.max !== undefined && n > props.max) n = props.max
+          if (props.min !== undefined && n < props.min) n = props.min
+          setDraft(n)
+        }}
         onPressEnter={commit}
-        onKeyDown={onKeyDown}
+        onKeyDown={onNumberKeyDown}
         min={props.min}
         max={props.max}
         // 业务字段（如 max_users）语义上为整数；强制 0 位小数避免提交浮点导致服务端拒绝。
