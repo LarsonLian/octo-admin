@@ -235,6 +235,19 @@ export default function InlineEditField(props: InlineEditFieldProps) {
       />
     )
   } else if (props.kind === 'number') {
+    // 非负整数（min >= 0）时连 '-' 一起剥离，杜绝非数字输入；
+    // 允许负值的场景才保留前导 '-'。小数点、字母、空格等始终拒。
+    const allowNegative = props.min === undefined || props.min < 0
+    // antd InputNumber 的 parser 期望返回 number；空输入回退到 0，避免 NaN 流入受控 value。
+    const digitOnlyParser = (text: string | undefined): number => {
+      const s = text ?? ''
+      const stripped = allowNegative
+        ? (s.trim().startsWith('-') ? '-' : '') + s.replace(/[^\d]/g, '')
+        : s.replace(/[^\d]/g, '')
+      if (stripped === '' || stripped === '-') return 0
+      const n = Number(stripped)
+      return Number.isFinite(n) ? n : 0
+    }
     control = (
       <InputNumber
         ref={(el) => {
@@ -249,6 +262,8 @@ export default function InlineEditField(props: InlineEditFieldProps) {
         // 业务字段（如 max_users）语义上为整数；强制 0 位小数避免提交浮点导致服务端拒绝。
         precision={0}
         step={1}
+        parser={digitOnlyParser}
+        formatter={(v) => (v == null ? '' : String(v))}
         disabled={saving}
         size="small"
         style={{ width: 140 }}

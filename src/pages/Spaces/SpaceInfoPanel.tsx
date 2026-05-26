@@ -12,6 +12,8 @@ import {
 const NAME_MAX = 100
 const DESC_MAX = 500
 const LOGO_MAX = 200
+// 成员上限的产品规则：上界 50000（业务侧限制，避免极端值）；0 表示不限。
+const MAX_USERS_HARD_CAP = 50000
 
 const STATUS_META: Record<SpaceStatus, { text: string; tone: 'online' | 'destroyed' | 'banned' }> = {
   0: { text: '已解散', tone: 'destroyed' },
@@ -169,6 +171,7 @@ export default function SpaceInfoPanel({ space, onSpaceChange, onUpdated }: Prop
               value={space.max_users}
               readOnly={!editable}
               min={0}
+              max={MAX_USERS_HARD_CAP}
               display={
                 space.max_users === 0 ? (
                   <span style={{ color: 'var(--a-text-tertiary)' }}>不限</span>
@@ -179,6 +182,7 @@ export default function SpaceInfoPanel({ space, onSpaceChange, onUpdated }: Prop
               validate={(v) => {
                 const n = Number(v)
                 if (n < 0) return '成员上限不能为负'
+                if (n > MAX_USERS_HARD_CAP) return `成员上限不能超过 ${MAX_USERS_HARD_CAP}`
                 if (n > 0 && n < space.member_count) {
                   return `成员上限 (${n}) 不能低于当前成员数 (${space.member_count})`
                 }
