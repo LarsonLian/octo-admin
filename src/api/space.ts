@@ -108,6 +108,10 @@ export interface SpaceProfileUpdateReq {
   max_users?: number
 }
 
+// 成员上限的产品规则：上界 50000（业务侧限制，避免极端值）；0 表示不限。
+// 创建与编辑必须使用同一上限，否则会出现 "可创建但无法再编辑回去" 的不一致。
+export const MAX_USERS_HARD_CAP = 50000
+
 export const updateSpaceProfile = (spaceId: string, data: SpaceProfileUpdateReq) =>
   api.put(`/v1/manager/spaces/${spaceId}`, data)
 

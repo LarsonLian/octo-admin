@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Typography, Tooltip, message } from 'antd'
 import InlineEditField from './InlineEditField'
 import {
+  MAX_USERS_HARD_CAP,
   updateSpaceProfile,
   type Space,
   type SpaceJoinMode,
@@ -12,8 +13,6 @@ import {
 const NAME_MAX = 100
 const DESC_MAX = 500
 const LOGO_MAX = 200
-// 成员上限的产品规则：上界 50000（业务侧限制，避免极端值）；0 表示不限。
-const MAX_USERS_HARD_CAP = 50000
 
 const STATUS_META: Record<SpaceStatus, { text: string; tone: 'online' | 'destroyed' | 'banned' }> = {
   0: { text: '已解散', tone: 'destroyed' },
