@@ -184,7 +184,10 @@ export default function InlineEditField(props: InlineEditFieldProps) {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={props.placeholder}
-          maxLength={props.maxLength}
+          // 故意不传 maxLength：浏览器按 UTF-16 code unit 计数，
+          // 会在 emoji / 罕见 CJK 等代理对字符上提前截断 (e.g. 50 emoji ≈ 100 code units)，
+          // 与服务端 utf8.RuneCountInString 的 rune 上限不一致。
+          // 计数与超限拦截统一交给 validate（rune 计数）处理。
           rows={props.rows ?? 3}
           disabled={saving}
           style={{ width: '100%' }}
@@ -223,7 +226,8 @@ export default function InlineEditField(props: InlineEditFieldProps) {
         onPressEnter={commit}
         onKeyDown={onKeyDown}
         placeholder={props.placeholder}
-        maxLength={props.maxLength}
+        // 不传 maxLength：浏览器按 UTF-16 code unit 计数，会在 emoji 等代理对字符上提前截断；
+        // 长度上限统一由 validate（rune 计数）兜底，与服务端 utf8.RuneCountInString 对齐。
         disabled={saving}
         size="small"
         style={{ minWidth: 200 }}

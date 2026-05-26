@@ -101,7 +101,18 @@ export default function SpaceAdminLayout() {
   ) => {
     if (!detail) return
     await updateSpaceUserProfile(detail.space_id, patch)
-    setDetail(apply(detail))
+    const next = apply(detail)
+    setDetail(next)
+    // 同步 mySpaces：name / logo 影响 SpaceSwitcher 显示，不同步则继续渲染旧值直到下次拉取 /space/my。
+    if (patch.name !== undefined || patch.logo !== undefined) {
+      setMySpaces(
+        mySpaces.map((s) =>
+          s.space_id === next.space_id
+            ? { ...s, name: next.name, logo: next.logo }
+            : s,
+        ),
+      )
+    }
     message.success('已保存')
   }
 
