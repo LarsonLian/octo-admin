@@ -424,6 +424,7 @@ export default function Spaces() {
         open={drawer.open}
         defaultTab={drawer.tab}
         onClose={() => setDrawer({ open: false, spaceId: null, tab: 'members' })}
+        onUpdated={() => fetchData()}
       />
 
       <Modal

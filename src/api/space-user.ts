@@ -73,6 +73,19 @@ export const getUser = (uid: string) => unwrap(api.get<UserInfo>(`/v1/users/${ui
 export const getSpaceUserDetail = (spaceId: string) =>
   unwrap(api.get<SpaceUserDetail>(`/v1/space/${spaceId}`))
 
+export interface SpaceUserProfileUpdateReq {
+  name?: string
+  description?: string
+  logo?: string
+  join_mode?: 0 | 1
+  preset_group_ids?: string
+}
+
+export const updateSpaceUserProfile = (
+  spaceId: string,
+  data: SpaceUserProfileUpdateReq,
+) => api.put(`/v1/space/${spaceId}`, data)
+
 export const listSpaceUserMembers = (
   spaceId: string,
   params: { page?: number; limit?: number } = {},

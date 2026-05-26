@@ -100,6 +100,17 @@ export const dissolveSpace = (spaceId: string) =>
 export const updateSpaceStatus = (spaceId: string, status: 1 | 2) =>
   api.put(`/v1/manager/spaces/${spaceId}/status/${status}`)
 
+export interface SpaceProfileUpdateReq {
+  name?: string
+  description?: string
+  logo?: string
+  join_mode?: SpaceJoinMode
+  max_users?: number
+}
+
+export const updateSpaceProfile = (spaceId: string, data: SpaceProfileUpdateReq) =>
+  api.put(`/v1/manager/spaces/${spaceId}`, data)
+
 export interface SpaceMemberListParams extends PageParams {}
 
 export const listSpaceMembers = (spaceId: string, params: SpaceMemberListParams = {}) =>
