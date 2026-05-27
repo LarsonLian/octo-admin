@@ -3,6 +3,8 @@ import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   Layout,
   Avatar,
+  Collapse,
+  Descriptions,
   Dropdown,
   Tooltip,
   Tabs,
@@ -19,6 +21,8 @@ import {
   DesktopOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons'
+import InlineEditField from '../Spaces/InlineEditField'
+import { updateSpaceUserProfile } from '../../api/space-user'
 import { useAuthStore } from '../../store/auth'
 import { useFeatureStore } from '../../store/feature'
 import { useTheme, type Theme } from '../../hooks/useTheme'
@@ -82,6 +86,40 @@ export default function SpaceAdminLayout() {
   )
   const [detail, setDetail] = useState<SpaceUserDetail | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // 仅 owner(2) / admin(1) 且空间正常状态(1) 时可编辑
+  const canEdit = !!detail && detail.role >= 1 && detail.status === 1
+  // 与服务端 modules/space/api_manager.go 中的字符上限保持一致。
+  const NAME_MAX = 100
+  const DESC_MAX = 500
+  const LOGO_MAX = 200
+  const runeCount = (s: string) => Array.from(s).length
+
+  const saveDetailField = async (
+    patch: Parameters<typeof updateSpaceUserProfile>[1],
+    apply: (d: SpaceUserDetail) => SpaceUserDetail,
+  ) => {
+    if (!detail) return
+    await updateSpaceUserProfile(detail.space_id, patch)
+    const next = apply(detail)
+    setDetail(next)
+    // 同步 mySpaces：name / logo 影响 SpaceSwitcher 显示；join_mode 当前不渲染但属于 MySpace
+    // 类型字段，一并同步避免下游消费者拿到陈旧值。不同步则继续渲染旧值直到下次拉取 /space/my。
+    if (
+      patch.name !== undefined ||
+      patch.logo !== undefined ||
+      patch.join_mode !== undefined
+    ) {
+      setMySpaces(
+        mySpaces.map((s) =>
+          s.space_id === next.space_id
+            ? { ...s, name: next.name, logo: next.logo, join_mode: next.join_mode }
+            : s,
+        ),
+      )
+    }
+    message.success('已保存')
+  }
 
   // 每次挂载/spaceId 变化时强拉 /space/my,校验权限,防止 mySpaces 过期显示已退出的空间
   useEffect(() => {
@@ -306,6 +344,115 @@ export default function SpaceAdminLayout() {
               )}
             </div>
 
+            <Collapse
+              ghost
+              size="small"
+              style={{ marginTop: 8, marginBottom: 12 }}
+              items={[
+                {
+                  key: 'info',
+                  label: <span style={{ color: 'var(--a-text-tertiary)' }}>空间信息</span>,
+                  children: (
+                    <Descriptions
+                      size="small"
+                      column={2}
+                      colon={false}
+                      labelStyle={{
+                        color: 'var(--a-text-tertiary)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        width: 80,
+                        padding: '6px 0',
+                      }}
+                      contentStyle={{ fontSize: 13, padding: '6px 0' }}
+                    >
+                      <Descriptions.Item label="名称">
+                        <InlineEditField
+                          kind="text"
+                          value={detail.name}
+                          readOnly={!canEdit}
+                          maxLength={NAME_MAX}
+                          validate={(v) => {
+                            const t = String(v).trim()
+                            if (!t) return '空间名称不能为空'
+                            if (runeCount(t) > NAME_MAX) return `空间名称不能超过 ${NAME_MAX} 个字符`
+                            return null
+                          }}
+                          onSave={(v) =>
+                            saveDetailField({ name: String(v) }, (d) => ({ ...d, name: String(v) }))
+                          }
+                        />
+                      </Descriptions.Item>
+                      <Descriptions.Item label="加入方式">
+                        <InlineEditField
+                          kind="select"
+                          value={detail.join_mode}
+                          readOnly={!canEdit}
+                          display={
+                            detail.join_mode === 0 ? (
+                              <span className="pill-outline neutral">直接加入</span>
+                            ) : (
+                              <span className="pill-outline warning">需审批</span>
+                            )
+                          }
+                          options={[
+                            { value: 0, label: '直接加入' },
+                            { value: 1, label: '需审批' },
+                          ]}
+                          onSave={(v) => {
+                            const jm = (Number(v) === 1 ? 1 : 0) as 0 | 1
+                            return saveDetailField({ join_mode: jm }, (d) => ({
+                              ...d,
+                              join_mode: jm,
+                            }))
+                          }}
+                        />
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Logo" span={2}>
+                        <InlineEditField
+                          kind="text"
+                          value={detail.logo}
+                          readOnly={!canEdit}
+                          maxLength={LOGO_MAX}
+                          placeholder="https://..."
+                          emptyText="未设置"
+                          validate={(v) =>
+                            runeCount(String(v)) > LOGO_MAX
+                              ? `Logo 不能超过 ${LOGO_MAX} 个字符`
+                              : null
+                          }
+                          onSave={(v) =>
+                            saveDetailField({ logo: String(v) }, (d) => ({ ...d, logo: String(v) }))
+                          }
+                        />
+                      </Descriptions.Item>
+                      <Descriptions.Item label="简介" span={2}>
+                        <InlineEditField
+                          kind="textarea"
+                          value={detail.description}
+                          readOnly={!canEdit}
+                          maxLength={DESC_MAX}
+                          rows={3}
+                          emptyText="未填写"
+                          validate={(v) =>
+                            runeCount(String(v).trim()) > DESC_MAX
+                              ? `空间描述不能超过 ${DESC_MAX} 个字符`
+                              : null
+                          }
+                          onSave={(v) =>
+                            saveDetailField({ description: String(v) }, (d) => ({
+                              ...d,
+                              description: String(v),
+                            }))
+                          }
+                        />
+                      </Descriptions.Item>
+                    </Descriptions>
+                  ),
+                },
+              ]}
+            />
+
             <Tabs
               activeKey={activeTab}
               onChange={(k) => navigate(`/space/${spaceId}/${k}`)}
@@ -317,6 +464,7 @@ export default function SpaceAdminLayout() {
           </>
         )}
       </Content>
+
     </Layout>
   )
 }

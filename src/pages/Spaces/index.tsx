@@ -18,6 +18,7 @@ import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../../api'
 import {
+  MAX_USERS_HARD_CAP,
   createSpace,
   dissolveSpace,
   listDisabledSpaces,
@@ -424,6 +425,7 @@ export default function Spaces() {
         open={drawer.open}
         defaultTab={drawer.tab}
         onClose={() => setDrawer({ open: false, spaceId: null, tab: 'members' })}
+        onUpdated={() => fetchData()}
       />
 
       <Modal
@@ -484,9 +486,33 @@ export default function Spaces() {
           <Form.Item
             name="max_users"
             label="人数上限"
-            extra="0 表示不限"
+            extra={`0 表示不限；上限 ${MAX_USERS_HARD_CAP}`}
+            rules={[
+              {
+                validator: (_, value: number | undefined) => {
+                  if (value === undefined || value === null) return Promise.resolve()
+                  if (!Number.isInteger(value) || value < 0) {
+                    return Promise.reject(new Error('人数上限必须为非负整数'))
+                  }
+                  if (value > MAX_USERS_HARD_CAP) {
+                    return Promise.reject(
+                      new Error(`人数上限不能超过 ${MAX_USERS_HARD_CAP}`),
+                    )
+                  }
+                  return Promise.resolve()
+                },
+              },
+            ]}
           >
-            <InputNumber min={0} style={{ width: '100%' }} />
+            {/* 与编辑路径 (SpaceInfoPanel) 共用同一 cap，避免 "创建得了但改不回去" 的不一致。
+                precision=0 阻止小数；min/max 让 antd 的步进控件落在 [0, cap] 内。 */}
+            <InputNumber
+              min={0}
+              max={MAX_USERS_HARD_CAP}
+              precision={0}
+              step={1}
+              style={{ width: '100%' }}
+            />
           </Form.Item>
           <Form.Item
             name="preset_group_ids"
