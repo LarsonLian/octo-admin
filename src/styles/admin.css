@@ -1089,3 +1089,149 @@
   flex: 1;
   min-width: 0;
 }
+
+/* =========== System Setting masonry =========== */
+/* CSS multi-column masonry: cards pack column by column, top to bottom,
+   avoiding the large gaps the old paired Row/Col grid left between rows. */
+.admin-shell .setting-masonry {
+  column-count: 2;
+  column-gap: 16px;
+}
+
+.admin-shell .setting-masonry .setting-card {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+/* Match the previous lg breakpoint: single column on narrow screens */
+@media (max-width: 991.98px) {
+  .admin-shell .setting-masonry {
+    column-count: 1;
+  }
+}
+
+/* =========== System Setting rows (label / control / meta hierarchy) =========== */
+/* Card title + item-count badge */
+.admin-shell .setting-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-shell .setting-card-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--a-text-tertiary);
+  background: var(--a-bg-muted);
+  border-radius: var(--a-radius-pill);
+  padding: 1px 8px;
+}
+
+/* Row container: thin dividers between rows act as quiet background structure */
+.admin-shell .setting-rows {
+  display: flex;
+  flex-direction: column;
+}
+.admin-shell .setting-row {
+  padding: 14px 0;
+  border-top: 1px solid var(--a-border-default);
+}
+.admin-shell .setting-rows .setting-row:first-child {
+  padding-top: 2px;
+  border-top: 0;
+}
+
+/* inline: label left, compact control right; block: label on top, full-width control */
+.admin-shell .setting-row--inline {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.admin-shell .setting-row--inline .setting-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.admin-shell .setting-row--inline .setting-row-control {
+  flex-shrink: 0;
+}
+.admin-shell .setting-row--block .setting-row-control {
+  margin-top: 8px;
+}
+.admin-shell .setting-row--block .setting-row-control .ant-input,
+.admin-shell .setting-row--block .setting-row-control .ant-input-affix-wrapper,
+.admin-shell .setting-row--block .setting-row-control .ant-input-password {
+  width: 100%;
+}
+
+/* Layer 1: label (primary, strongest weight) */
+.admin-shell .setting-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-shell .setting-row-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--a-text-primary);
+  line-height: 1.4;
+}
+
+/* Layer 3: key (tertiary, very faint, for troubleshooting/locating only) */
+.admin-shell .setting-row-key {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--a-text-quaternary);
+  letter-spacing: 0.01em;
+}
+
+/* Source badge: DB (configured, brand color) / Default (following default, neutral gray) */
+.admin-shell .setting-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 0 6px;
+  border-radius: var(--a-radius-sm);
+}
+.admin-shell .setting-badge--db {
+  color: var(--a-brand-subtle-fg);
+  background: var(--a-brand-subtle-bg);
+}
+.admin-shell .setting-badge--default {
+  color: var(--a-text-tertiary);
+  background: var(--a-bg-muted);
+}
+
+/* Layer 2: controls */
+.admin-shell .setting-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-shell .setting-switch-reset {
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+}
+/* Following-default state: muted so it reads differently from an explicit value */
+.admin-shell .setting-switch-toggle--default {
+  opacity: 0.55;
+}
+.admin-shell .setting-switch-toggle--default:hover {
+  opacity: 0.8;
+}
+.admin-shell .setting-number {
+  width: 130px;
+}
+
+/* Toolbar "saved at" hint */
+.admin-shell .setting-saved-hint {
+  font-size: 13px;
+  color: var(--a-text-tertiary);
+  margin-right: 4px;
+}
