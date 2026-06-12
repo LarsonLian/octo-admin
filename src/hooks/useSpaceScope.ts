@@ -4,7 +4,8 @@ import * as manager from '../api/space'
 import * as user from '../api/space-user'
 
 export type SpaceScopeKind = 'super' | 'space'
-export type SpaceScopeRole = 'super' | 0 | 1 | 2
+export type SpaceMemberRole = 0 | 1 | 2
+export type SpaceScopeRole = 'super' | SpaceMemberRole
 
 export interface InviteListItem {
   invite_code: string
@@ -25,7 +26,7 @@ export interface InviteListResp {
 export interface MemberItem {
   uid: string
   name: string
-  role: 0 | 1 | 2
+  role: SpaceMemberRole
   status?: number
   robot?: 0 | 1
   created_at?: string
@@ -85,6 +86,7 @@ export interface SpaceScope {
     listMembers: (spaceId: string, params: ScopedMemberParams) => Promise<MemberListResp>
     addMembers?: (spaceId: string, uids: string[]) => Promise<unknown>
     removeMembers: (spaceId: string, uids: string[]) => Promise<unknown>
+    updateMemberRole: (spaceId: string, uid: string, role: SpaceMemberRole) => Promise<unknown>
     listInvites: (spaceId: string, params: ScopedInviteParams) => Promise<InviteListResp>
     createInvite: (
       spaceId: string,
@@ -123,6 +125,8 @@ function buildSuperScope(): SpaceScope {
       },
       addMembers: (spaceId, uids) => manager.addSpaceMembers(spaceId, uids),
       removeMembers: (spaceId, uids) => manager.removeSpaceMembers(spaceId, uids),
+      updateMemberRole: (spaceId, uid, role) =>
+        manager.updateSpaceMemberRole(spaceId, uid, role),
       listInvites: async (spaceId, params) => {
         const res = await manager.listSpaceInvites(spaceId, {
           page_index: params.page_index,
@@ -153,7 +157,7 @@ function buildSuperScope(): SpaceScope {
   }
 }
 
-function buildUserScope(role: 0 | 1 | 2): SpaceScope {
+function buildUserScope(role: SpaceMemberRole): SpaceScope {
   const isManager = role >= 1
   return {
     kind: 'space',
@@ -192,6 +196,8 @@ function buildUserScope(role: 0 | 1 | 2): SpaceScope {
         }
       },
       removeMembers: (spaceId, uids) => user.removeSpaceUserMembers(spaceId, uids),
+      updateMemberRole: (spaceId, uid, nextRole) =>
+        user.updateSpaceUserMemberRole(spaceId, uid, nextRole),
       listInvites: async (spaceId, params) => {
         const resp = await user.listSpaceUserInvites(spaceId, params)
         return { count: resp.count, list: resp.list }
@@ -230,7 +236,7 @@ function buildUserScope(role: 0 | 1 | 2): SpaceScope {
   }
 }
 
-export function useSpaceScope(role?: 0 | 1 | 2): SpaceScope {
+export function useSpaceScope(role?: SpaceMemberRole): SpaceScope {
   const scope = useAuthStore((s) => s.scope)
   return useMemo(() => {
     if (scope === 'super') return buildSuperScope()
