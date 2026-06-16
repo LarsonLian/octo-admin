@@ -1,6 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from './store/auth'
 import { useFeatureStore } from './store/feature'
+import {
+  firstManagerPath,
+  hasManagerCapability,
+  type ManagerCapabilityKey,
+} from './auth/capabilities'
 import MainLayout from './layouts/MainLayout'
 import AdminThemeProvider from './layouts/AdminThemeProvider'
 import Login from './pages/Login'
@@ -24,6 +30,35 @@ function SuperOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function CapabilityRoute({
+  capability,
+  children,
+}: {
+  capability: ManagerCapabilityKey
+  children: React.ReactNode
+}) {
+  const { managerCapabilities, managerProfileStatus } = useAuthStore()
+  if (
+    managerProfileStatus === 'idle' ||
+    managerProfileStatus === 'loading' ||
+    managerCapabilities === null
+  ) return null
+  if (!hasManagerCapability(managerCapabilities, capability)) {
+    return <Navigate to={firstManagerPath(managerCapabilities)} replace />
+  }
+  return <>{children}</>
+}
+
+function ManagerIndexRoute() {
+  const { managerCapabilities, managerProfileStatus } = useAuthStore()
+  if (
+    managerProfileStatus === 'idle' ||
+    managerProfileStatus === 'loading' ||
+    managerCapabilities === null
+  ) return null
+  return <Navigate to={firstManagerPath(managerCapabilities)} replace />
+}
+
 function SpaceOnlyRoute({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, scope } = useAuthStore()
   if (!isLoggedIn || scope !== 'space') return <Navigate to="/space" replace />
@@ -42,6 +77,25 @@ function AppBotsGate({ fallback, children }: { fallback: string; children: React
 function SpaceAppBotsGate({ children }: { children: React.ReactNode }) {
   const { spaceId } = useParams<{ spaceId: string }>()
   return <AppBotsGate fallback={`/space/${spaceId}/members`}>{children}</AppBotsGate>
+}
+
+function ManagerAppBotsGate({ children }: { children: React.ReactNode }) {
+  const managerCapabilities = useAuthStore((s) => s.managerCapabilities)
+  return <AppBotsGate fallback={firstManagerPath(managerCapabilities)}>{children}</AppBotsGate>
+}
+
+function NoAccess() {
+  const { t } = useTranslation('layout')
+  return (
+    <div style={{ minHeight: 320, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+      <div>
+        <h1 className="page-title">{t('noAccess.title')}</h1>
+        <p className="page-subtitle" style={{ marginBottom: 0 }}>
+          {t('noAccess.subtitle')}
+        </p>
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -107,22 +161,72 @@ function AdminRoutes() {
           </SuperOnlyRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="users" element={<Users />} />
-        <Route path="groups" element={<Groups />} />
-        <Route path="spaces" element={<Spaces />} />
-        <Route path="system-setting" element={<SystemSetting />} />
-        <Route path="backup" element={<Backup />} />
-        <Route path="download" element={<Download />} />
+        <Route index element={<ManagerIndexRoute />} />
+        <Route
+          path="dashboard"
+          element={
+            <CapabilityRoute capability="dashboard.read">
+              <Dashboard />
+            </CapabilityRoute>
+          }
+        />
+        <Route
+          path="users"
+          element={
+            <CapabilityRoute capability="users.read">
+              <Users />
+            </CapabilityRoute>
+          }
+        />
+        <Route
+          path="groups"
+          element={
+            <CapabilityRoute capability="groups.read">
+              <Groups />
+            </CapabilityRoute>
+          }
+        />
+        <Route
+          path="spaces"
+          element={
+            <CapabilityRoute capability="space.read">
+              <Spaces />
+            </CapabilityRoute>
+          }
+        />
+        <Route
+          path="system-setting"
+          element={
+            <CapabilityRoute capability="system_setting">
+              <SystemSetting />
+            </CapabilityRoute>
+          }
+        />
+        <Route
+          path="backup"
+          element={
+            <CapabilityRoute capability="backup">
+              <Backup />
+            </CapabilityRoute>
+          }
+        />
+        <Route
+          path="download"
+          element={
+            <CapabilityRoute capability="appversion.read">
+              <Download />
+            </CapabilityRoute>
+          }
+        />
         <Route
           path="app-bots"
           element={
-            <AppBotsGate fallback="/dashboard">
+            <ManagerAppBotsGate>
               <AppBots />
-            </AppBotsGate>
+            </ManagerAppBotsGate>
           }
         />
+        <Route path="no-access" element={<NoAccess />} />
       </Route>
     </Routes>
   )
