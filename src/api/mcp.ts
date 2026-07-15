@@ -135,6 +135,28 @@ export interface ListMcpResponse {
   categories: { key: string; count: number }[]
 }
 
+/** PATCH body — every field optional (doc §4.5 shape). The marketplace admin
+ *  surface rejects any `visibility` other than "system"; we omit it so callers
+ *  cannot accidentally demote a system MCP. */
+export interface PatchMcpParams {
+  name?: string
+  category?: string
+  icon?: string
+  tags?: string[]
+  slogan?: string
+  transport?: McpTransport
+  url?: string
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  headers?: Record<string, string>
+  authType?: McpAuthType
+  tools?: McpTool[]
+  usageExamples?: string[]
+  faqs?: McpFaq[]
+  notes?: string[]
+}
+
 // ─── Public functions ─────────────────────────────────────────────────────
 
 /** GET /admin/api/v1/mcps — list every visibility=system record. */
@@ -159,4 +181,28 @@ export async function createSystemMcp(
 ): Promise<McpDetail> {
   const resp = await mcpApi.post<McpDetail>('/admin/mcps', params)
   return resp.data
+}
+
+/** GET /admin/api/v1/mcps/{id} — fetch full detail for a system MCP. */
+export async function getSystemMcp(id: string): Promise<McpDetail> {
+  const resp = await mcpApi.get<McpDetail>(`/admin/mcps/${encodeURIComponent(id)}`)
+  return resp.data
+}
+
+/** PATCH /admin/api/v1/mcps/{id} — partial update. Any admin can edit any
+ *  system MCP (no ownership check server-side). */
+export async function updateSystemMcp(
+  id: string,
+  params: PatchMcpParams
+): Promise<McpDetail> {
+  const resp = await mcpApi.patch<McpDetail>(
+    `/admin/mcps/${encodeURIComponent(id)}`,
+    params
+  )
+  return resp.data
+}
+
+/** DELETE /admin/api/v1/mcps/{id} — soft delete. */
+export async function deleteSystemMcp(id: string): Promise<void> {
+  await mcpApi.delete(`/admin/mcps/${encodeURIComponent(id)}`)
 }

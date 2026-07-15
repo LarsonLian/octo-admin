@@ -1,80 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button, Input, Space as AntSpace, Table, Tag, message } from 'antd'
 import {
-  Button,
-  Divider,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Space as AntSpace,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd'
-import {
-  ApiOutlined,
-  DeleteOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  createSystemMcp,
   listSystemMcps,
-  type CreateMcpParams,
+  type McpDetail,
   type McpListItem,
-  type McpTransport,
-  type McpTool,
 } from '../../api/mcp'
 import { ApiError } from '../../api'
 import { hasManagerCapability } from '../../auth/capabilities'
 import { useAuthStore } from '../../store/auth'
-
-const { Text } = Typography
+import McpDetailDrawer from './DetailDrawer'
+import McpFormModal from './FormModal'
+import './systemMcp.css'
 
 const PAGE_SIZE = 20
-const CATEGORY_KEYS = ['dev', 'data', 'search', 'productivity', 'ai', 'other']
-const TRANSPORT_KEYS: McpTransport[] = ['streamable-http', 'sse', 'stdio']
-
-/** Parse a comma-separated tag list into a trimmed, de-duped string array. */
-function parseTags(raw: string): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const chunk of raw.split(',')) {
-    const t = chunk.trim()
-    if (!t || seen.has(t)) continue
-    seen.add(t)
-    out.push(t)
-  }
-  return out
-}
-
-/** Parse a multi-line KEY=VALUE (or KEY: VALUE) list into a record. */
-function parseKV(raw: string, separator: '=' | ':'): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    const idx = trimmed.indexOf(separator)
-    if (idx === -1) continue
-    const k = trimmed.slice(0, idx).trim()
-    const v = trimmed.slice(idx + 1).trim()
-    if (k) out[k] = v
-  }
-  return out
-}
 
 /**
  * Admin page listing every visibility=system MCP across all Spaces (contract:
- * octo-marketplace/docs/api/mcp-v1.md §4.2 with visibility=system). The
- * "New" button opens a modal that submits to /admin/api/v1/mcps — the only
- * path where visibility=system is allowed.
- *
- * Distinct from the octo-web market page: no card view, no filter pills, no
- * infinite scroll. Ant Design table with server-side pagination fits the
- * admin console pattern (see pages/Spaces for the reference layout).
+ * octo-marketplace/docs/api/mcp-v1.md §9). Follows the console-standard
+ * layout of Users / Spaces: page-title header, toolbar with search + primary
+ * action, dense antd Table with inline row-actions. Detail lives in a
+ * Drawer (SpaceDetailDrawer pattern); create/edit share one Modal.
  */
 export default function SystemMcp() {
   const { t } = useTranslation(['systemMcp', 'common'])
@@ -86,12 +38,21 @@ export default function SystemMcp() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const [pendingKeyword, setPendingKeyword] = useState('')
 
-  const load = async (nextPage = page) => {
+  const [drawer, setDrawer] = useState<{ open: boolean; id: string | null }>({
+    open: false,
+    id: null,
+  })
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<McpDetail | null>(null)
+
+  const load = async (nextPage = page, kw = keyword) => {
     setLoading(true)
     try {
       const resp = await listSystemMcps({
+        keyword: kw,
         limit: PAGE_SIZE,
         offset: (nextPage - 1) * PAGE_SIZE,
       })
@@ -106,9 +67,62 @@ export default function SystemMcp() {
   }
 
   useEffect(() => {
-    load(1)
+    load(1, '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const handleSearch = () => {
+    const kw = pendingKeyword.trim()
+    setKeyword(kw)
+    load(1, kw)
+  }
+
+  const openDetail = (id: string) => setDrawer({ open: true, id })
+  const closeDetail = () => setDrawer({ open: false, id: null })
+
+  const openCreate = () => {
+    setEditing(null)
+    setFormOpen(true)
+  }
+
+  const openEdit = (detail: McpDetail) => {
+    setDrawer({ open: false, id: null })
+    setEditing(detail)
+    setFormOpen(true)
+  }
+
+  const handleDeleted = (id: string) => {
+    setRows((prev) => prev.filter((r) => r.id !== id))
+    setTotal((prev) => Math.max(0, prev - 1))
+    // If the last row on this page just disappeared and we're past page 1,
+    // reload the previous page so the user isn't left staring at empty state.
+    const isLastOnPage = rows.length === 1 && page > 1
+    if (isLastOnPage) load(page - 1, keyword)
+    closeDetail()
+  }
+
+  const handleSaved = (updated?: McpDetail) => {
+    if (updated) {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === updated.id
+            ? {
+                ...r,
+                name: updated.name,
+                slogan: updated.slogan,
+                category: updated.category,
+                icon: updated.icon,
+                tags: updated.tags,
+                toolCount: updated.toolCount,
+                creatorName: updated.creatorName,
+              }
+            : r
+        )
+      )
+    } else {
+      load(1, keyword)
+    }
+  }
 
   const columns = useMemo<ColumnsType<McpListItem>>(
     () => [
@@ -117,10 +131,13 @@ export default function SystemMcp() {
         dataIndex: 'name',
         key: 'name',
         render: (name: string, r) => (
-          <AntSpace>
-            <span style={{ fontSize: 18 }}>{r.icon || '🧩'}</span>
-            <Text strong>{name}</Text>
-          </AntSpace>
+          <div className="mcp-cell-name">
+            <span className="mcp-cell-name__icon">{r.icon || '🧩'}</span>
+            <div className="mcp-cell-name__text">
+              <span className="cell-primary">{name}</span>
+              {r.slogan && <span className="mcp-cell-name__sub">{r.slogan}</span>}
+            </div>
+          </div>
         ),
       },
       {
@@ -129,14 +146,39 @@ export default function SystemMcp() {
         key: 'category',
         width: 140,
         render: (v: string) => (
-          <Tag>{t(`categoryOptions.${v}`, { defaultValue: v })}</Tag>
+          <Tag className="pill-outline neutral">
+            {t(`categoryOptions.${v}`, { defaultValue: v })}
+          </Tag>
         ),
+      },
+      {
+        title: t('table.tags'),
+        dataIndex: 'tags',
+        key: 'tags',
+        width: 200,
+        render: (tags: string[]) =>
+          tags?.length ? (
+            <AntSpace size={4} wrap>
+              {tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="pill-outline brand">
+                  {tag}
+                </span>
+              ))}
+              {tags.length > 3 && (
+                <span className="mcp-more">+{tags.length - 3}</span>
+              )}
+            </AntSpace>
+          ) : (
+            <span className="mcp-more">—</span>
+          ),
       },
       {
         title: t('table.tools'),
         dataIndex: 'toolCount',
         key: 'toolCount',
-        width: 90,
+        width: 80,
+        align: 'right',
+        render: (v: number) => <span className="mono">{v}</span>,
       },
       {
         title: t('table.creator'),
@@ -146,42 +188,37 @@ export default function SystemMcp() {
         render: (v: string) => v || '—',
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [t]
   )
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <Typography.Title level={4} style={{ marginBottom: 4 }}>
-            <ApiOutlined style={{ marginRight: 8 }} />
-            {t('pageTitle')}
-          </Typography.Title>
-          <Text type="secondary">{t('pageDesc')}</Text>
-        </div>
-        <AntSpace>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => load(page)}
-            loading={loading}
-          />
-          {canWrite && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
-            >
-              {t('create')}
-            </Button>
-          )}
-        </AntSpace>
+      <h1 className="page-title">{t('pageTitle')}</h1>
+      <p className="page-subtitle">{t('pageDesc')}</p>
+
+      <div className="toolbar">
+        <Input
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder={t('searchPlaceholder')}
+          value={pendingKeyword}
+          onChange={(e) => setPendingKeyword(e.target.value)}
+          onPressEnter={handleSearch}
+          onBlur={handleSearch}
+          style={{ width: 280 }}
+        />
+        <div className="toolbar-spacer" />
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => load(page, keyword)}
+          loading={loading}
+        />
+        {canWrite && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            {t('create')}
+          </Button>
+        )}
       </div>
 
       <Table<McpListItem>
@@ -190,244 +227,37 @@ export default function SystemMcp() {
         columns={columns}
         dataSource={rows}
         locale={{ emptyText: t('empty') }}
+        onRow={(r) => ({
+          onClick: () => openDetail(r.id),
+          style: { cursor: 'pointer' },
+        })}
         pagination={{
           current: page,
           pageSize: PAGE_SIZE,
           total,
           showSizeChanger: false,
-          onChange: (p) => load(p),
+          onChange: (p) => load(p, keyword),
         }}
       />
 
-      <CreateModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={() => load(1)}
+      <McpDetailDrawer
+        mcpId={drawer.id}
+        open={drawer.open}
+        onClose={closeDetail}
+        canManage={canWrite}
+        onEdit={openEdit}
+        onDeleted={handleDeleted}
+      />
+
+      <McpFormModal
+        open={formOpen}
+        editing={editing}
+        onClose={() => {
+          setFormOpen(false)
+          setEditing(null)
+        }}
+        onSaved={handleSaved}
       />
     </div>
-  )
-}
-
-// ─── Create modal ─────────────────────────────────────────────────────────
-
-interface CreateModalProps {
-  open: boolean
-  onClose: () => void
-  onCreated: () => void
-}
-
-interface FormShape {
-  name: string
-  category: string
-  slogan?: string
-  icon?: string
-  tagsRaw?: string
-  transport: McpTransport
-  url?: string
-  authType?: 'none' | 'bearer'
-  command?: string
-  argsRaw?: string
-  envRaw?: string
-  headersRaw?: string
-  tools: McpTool[]
-}
-
-function CreateModal({ open, onClose, onCreated }: CreateModalProps) {
-  const { t } = useTranslation(['systemMcp', 'common'])
-  const [form] = Form.useForm<FormShape>()
-  const [submitting, setSubmitting] = useState(false)
-  const transport = Form.useWatch('transport', form) ?? 'streamable-http'
-  const isRemote = transport === 'streamable-http' || transport === 'sse'
-
-  useEffect(() => {
-    if (!open) {
-      form.resetFields()
-    }
-  }, [open, form])
-
-  const handleOk = async () => {
-    let values: FormShape
-    try {
-      values = await form.validateFields()
-    } catch {
-      return
-    }
-    const tools = (values.tools ?? []).filter((tt) => tt?.name?.trim())
-    if (tools.length === 0) {
-      message.warning(t('form.toolsHint'))
-      return
-    }
-    const payload: CreateMcpParams = {
-      name: values.name.trim(),
-      category: values.category,
-      slogan: values.slogan?.trim(),
-      icon: values.icon?.trim(),
-      tags: values.tagsRaw ? parseTags(values.tagsRaw) : undefined,
-      transport: values.transport,
-      url: isRemote ? values.url?.trim() : undefined,
-      authType: isRemote ? values.authType ?? 'none' : undefined,
-      command: !isRemote ? values.command?.trim() : undefined,
-      args:
-        !isRemote && values.argsRaw?.trim()
-          ? values.argsRaw.trim().split(/\s+/)
-          : undefined,
-      env:
-        !isRemote && values.envRaw ? parseKV(values.envRaw, '=') : undefined,
-      headers:
-        isRemote && values.headersRaw
-          ? parseKV(values.headersRaw, ':')
-          : undefined,
-      tools,
-    }
-    setSubmitting(true)
-    try {
-      await createSystemMcp(payload)
-      message.success(t('modal.success'))
-      onCreated()
-      onClose()
-    } catch (err) {
-      message.error(err instanceof ApiError ? err.message : t('modal.failed'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      title={t('modal.title')}
-      onCancel={onClose}
-      onOk={handleOk}
-      okText={t('modal.submit')}
-      cancelText={t('modal.cancel')}
-      confirmLoading={submitting}
-      destroyOnClose
-      width={720}
-    >
-      <Form<FormShape>
-        form={form}
-        layout="vertical"
-        initialValues={{
-          category: 'dev',
-          transport: 'streamable-http' as McpTransport,
-          authType: 'none',
-          tools: [{ name: '', description: '' }],
-        }}
-        preserve={false}
-      >
-        <Form.Item
-          name="name"
-          label={t('form.name')}
-          rules={[{ required: true, message: t('form.nameRequired') }]}
-        >
-          <Input placeholder={t('form.namePlaceholder')} />
-        </Form.Item>
-        <Form.Item name="category" label={t('form.category')}>
-          <Select
-            options={CATEGORY_KEYS.map((k) => ({
-              value: k,
-              label: t(`categoryOptions.${k}`),
-            }))}
-          />
-        </Form.Item>
-        <Form.Item name="slogan" label={t('form.slogan')}>
-          <Input placeholder={t('form.sloganPlaceholder')} />
-        </Form.Item>
-        <Form.Item name="icon" label={t('form.icon')}>
-          <Input placeholder={t('form.iconPlaceholder')} />
-        </Form.Item>
-        <Form.Item name="tagsRaw" label={t('form.tags')}>
-          <Input placeholder={t('form.tagsPlaceholder')} />
-        </Form.Item>
-
-        <Divider style={{ margin: '8px 0 16px' }} />
-
-        <Form.Item name="transport" label={t('form.transport')}>
-          <Select
-            options={TRANSPORT_KEYS.map((k) => ({
-              value: k,
-              label: t(`transportOptions.${k}`),
-            }))}
-          />
-        </Form.Item>
-        {isRemote ? (
-          <>
-            <Form.Item name="url" label={t('form.url')}>
-              <Input placeholder={t('form.urlPlaceholder')} />
-            </Form.Item>
-            <Form.Item name="authType" label={t('form.authType')}>
-              <Select
-                options={[
-                  { value: 'none', label: t('form.authTypeNone') },
-                  { value: 'bearer', label: t('form.authTypeBearer') },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item name="headersRaw" label={t('form.headers')}>
-              <Input.TextArea
-                rows={3}
-                placeholder={t('form.headersPlaceholder')}
-              />
-            </Form.Item>
-          </>
-        ) : (
-          <>
-            <Form.Item name="command" label={t('form.command')}>
-              <Input placeholder={t('form.commandPlaceholder')} />
-            </Form.Item>
-            <Form.Item name="argsRaw" label={t('form.args')}>
-              <Input placeholder={t('form.argsPlaceholder')} />
-            </Form.Item>
-            <Form.Item name="envRaw" label={t('form.env')}>
-              <Input.TextArea rows={3} placeholder={t('form.envPlaceholder')} />
-            </Form.Item>
-          </>
-        )}
-
-        <Divider style={{ margin: '8px 0 16px' }} />
-
-        <Form.Item label={t('form.tools')} required>
-          <Form.List name="tools">
-            {(fields, { add, remove }) => (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {fields.map((field) => (
-                  <AntSpace key={field.key} align="baseline" style={{ display: 'flex' }}>
-                    <Form.Item
-                      {...field}
-                      name={[field.name, 'name']}
-                      style={{ flex: 1, marginBottom: 0 }}
-                    >
-                      <Input placeholder={t('form.toolNamePlaceholder')} />
-                    </Form.Item>
-                    <Form.Item
-                      {...field}
-                      name={[field.name, 'description']}
-                      style={{ flex: 2, marginBottom: 0 }}
-                    >
-                      <Input placeholder={t('form.toolDescPlaceholder')} />
-                    </Form.Item>
-                    <Button
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      onClick={() => remove(field.name)}
-                    />
-                  </AntSpace>
-                ))}
-                <Button
-                  type="dashed"
-                  onClick={() => add({ name: '', description: '' })}
-                  icon={<PlusOutlined />}
-                >
-                  {t('form.toolAdd')}
-                </Button>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {t('form.toolsHint')}
-                </Text>
-              </div>
-            )}
-          </Form.List>
-        </Form.Item>
-      </Form>
-    </Modal>
   )
 }
