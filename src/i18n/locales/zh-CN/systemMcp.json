@@ -1,0 +1,67 @@
+{
+  "pageTitle": "系统 MCP",
+  "pageDesc": "管理所有空间可见的系统 MCP 服务，供全平台用户接入。",
+  "create": "新建系统 MCP",
+  "table": {
+    "name": "名称",
+    "category": "分类",
+    "creator": "创建者",
+    "tools": "工具数",
+    "createdAt": "创建时间",
+    "actions": "操作"
+  },
+  "empty": "还没有系统 MCP，点击右上角「新建」添加",
+  "loadFailed": "加载失败",
+  "modal": {
+    "title": "新建系统 MCP",
+    "submit": "提交",
+    "cancel": "取消",
+    "success": "已创建",
+    "failed": "创建失败"
+  },
+  "form": {
+    "name": "名称",
+    "nameRequired": "请填写名称",
+    "namePlaceholder": "例如 GitHub MCP",
+    "category": "分类",
+    "slogan": "简介",
+    "sloganPlaceholder": "一句话描述这个 MCP 能做什么",
+    "icon": "图标",
+    "iconPlaceholder": "emoji 或 图片 URL（可选）",
+    "tags": "标签",
+    "tagsPlaceholder": "逗号分隔，例如 官方,热门",
+    "transport": "传输方式",
+    "url": "服务地址",
+    "urlPlaceholder": "例如 https://mcp.example.com/xxx/mcp",
+    "authType": "认证方式",
+    "authTypeNone": "无",
+    "authTypeBearer": "Bearer Token",
+    "command": "启动命令",
+    "commandPlaceholder": "例如 npx",
+    "args": "命令参数",
+    "argsPlaceholder": "空格分隔，例如 -y @modelcontextprotocol/server-xxx",
+    "tools": "工具清单",
+    "toolAdd": "新增工具",
+    "toolNamePlaceholder": "工具名，例如 create_issue",
+    "toolDescPlaceholder": "简要描述该工具能做什么",
+    "toolsHint": "至少填一条；工具名会展示给用户",
+    "advanced": "高级设置",
+    "env": "环境变量",
+    "envPlaceholder": "每行一个 KEY=VALUE",
+    "headers": "请求头",
+    "headersPlaceholder": "每行一个 Header: Value"
+  },
+  "categoryOptions": {
+    "dev": "开发工具",
+    "data": "数据服务",
+    "search": "搜索检索",
+    "productivity": "效率协作",
+    "ai": "AI 能力",
+    "other": "其他"
+  },
+  "transportOptions": {
+    "streamable-http": "远程 HTTP",
+    "sse": "远程 SSE",
+    "stdio": "本地命令 (stdio)"
+  }
+}

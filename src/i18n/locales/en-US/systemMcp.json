@@ -1,0 +1,67 @@
+{
+  "pageTitle": "System MCPs",
+  "pageDesc": "Manage platform-provided MCP servers visible in every space.",
+  "create": "New System MCP",
+  "table": {
+    "name": "Name",
+    "category": "Category",
+    "creator": "Creator",
+    "tools": "Tools",
+    "createdAt": "Created",
+    "actions": "Actions"
+  },
+  "empty": "No system MCPs yet. Click \"New\" in the top right.",
+  "loadFailed": "Failed to load",
+  "modal": {
+    "title": "New System MCP",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "success": "Created",
+    "failed": "Create failed"
+  },
+  "form": {
+    "name": "Name",
+    "nameRequired": "Name is required",
+    "namePlaceholder": "e.g. GitHub MCP",
+    "category": "Category",
+    "slogan": "Summary",
+    "sloganPlaceholder": "One line describing what this MCP does",
+    "icon": "Icon",
+    "iconPlaceholder": "Emoji or image URL (optional)",
+    "tags": "Tags",
+    "tagsPlaceholder": "Comma-separated, e.g. Official, Trending",
+    "transport": "Transport",
+    "url": "Server URL",
+    "urlPlaceholder": "e.g. https://mcp.example.com/xxx/mcp",
+    "authType": "Auth type",
+    "authTypeNone": "None",
+    "authTypeBearer": "Bearer Token",
+    "command": "Launch command",
+    "commandPlaceholder": "e.g. npx",
+    "args": "Command args",
+    "argsPlaceholder": "Space-separated, e.g. -y @modelcontextprotocol/server-xxx",
+    "tools": "Tools",
+    "toolAdd": "Add tool",
+    "toolNamePlaceholder": "Tool name, e.g. create_issue",
+    "toolDescPlaceholder": "What this tool does",
+    "toolsHint": "At least one tool required; names are shown to users.",
+    "advanced": "Advanced",
+    "env": "Environment variables",
+    "envPlaceholder": "One KEY=VALUE per line",
+    "headers": "Headers",
+    "headersPlaceholder": "One Header: Value per line"
+  },
+  "categoryOptions": {
+    "dev": "Dev tools",
+    "data": "Data services",
+    "search": "Search",
+    "productivity": "Productivity",
+    "ai": "AI",
+    "other": "Other"
+  },
+  "transportOptions": {
+    "streamable-http": "Remote HTTP",
+    "sse": "Remote SSE",
+    "stdio": "Local command (stdio)"
+  }
+}
