@@ -25,7 +25,6 @@ import {
   Radio,
   Select,
   Steps,
-  Tag,
   message,
 } from 'antd'
 import {
@@ -201,7 +200,6 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
   const [step, setStep] = useState(0)
   const [slugTouched, setSlugTouched] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const [tagInput, setTagInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [probing, setProbing] = useState(false)
   const [iconUploading, setIconUploading] = useState(false)
@@ -233,7 +231,6 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
     // Probe bearer is per-session and never re-used across opens.
     setProbeBearer('')
     setStep(0)
-    setTagInput('')
   }, [open, editing])
 
   const update = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
@@ -253,24 +250,6 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
   const onSlugChange = (v: string) => {
     setSlugTouched(true)
     update('slug', v)
-  }
-
-  const addTag = () => {
-    const t = tagInput.trim()
-    if (!t) return
-    if (form.tags.includes(t)) {
-      setTagInput('')
-      return
-    }
-    setForm((prev) => ({ ...prev, tags: [...prev.tags, t] }))
-    setTagInput('')
-  }
-
-  const removeTag = (idx: number) => {
-    setForm((prev) => ({
-      ...prev,
-      tags: prev.tags.filter((_, i) => i !== idx),
-    }))
   }
 
   const remote = isRemote(form.transport)
@@ -633,34 +612,27 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                   label={t('form.tags')}
                   extra={t('form.tagsPillHint')}
                 >
-                  <div>
-                    <Input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onPressEnter={(e) => {
-                        e.preventDefault()
-                        addTag()
-                      }}
-                      onBlur={addTag}
-                      placeholder={t('form.tagsPillPlaceholder')}
-                    />
-                    {form.tags.length > 0 && (
-                      <div style={{ marginTop: 8 }}>
-                        {form.tags.map((tg, i) => (
-                          <Tag
-                            key={`${tg}-${i}`}
-                            closable
-                            onClose={(e) => {
-                              e.preventDefault()
-                              removeTag(i)
-                            }}
-                          >
-                            {tg}
-                          </Tag>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <Select
+                    mode="tags"
+                    value={form.tags}
+                    onChange={(next: string[]) => {
+                      // Dedupe + trim in one pass; empty strings dropped.
+                      const seen = new Set<string>()
+                      const clean: string[] = []
+                      for (const raw of next) {
+                        const v = (raw ?? '').trim()
+                        if (!v || seen.has(v)) continue
+                        seen.add(v)
+                        clean.push(v)
+                      }
+                      update('tags', clean)
+                    }}
+                    tokenSeparators={[',', '，']}
+                    placeholder={t('form.tagsPillPlaceholder')}
+                    open={false}
+                    suffixIcon={null}
+                    style={{ width: '100%' }}
+                  />
                 </Form.Item>
               </div>
 
