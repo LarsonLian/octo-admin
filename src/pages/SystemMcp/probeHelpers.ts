@@ -62,7 +62,16 @@ function parseHeaderBlock(raw: string): Record<string, string> {
 /** Build the POST /admin/mcps/probe body from the current form fields. Only
  *  streamable-http / sse transports produce a payload — stdio is not
  *  probable from the server (mcp-v1.md §4.7). Returns null for non-remote
- *  transports so the caller can noop instead of firing a doomed request. */
+ *  transports so the caller can noop instead of firing a doomed request.
+ *
+ *  IMPORTANT: `authType` is intentionally not sent. The backend struct is
+ *  `service.ProbeRequest` (probe.go:57), which only declares transport, url,
+ *  command, args, env, headers — and the handler decodes with
+ *  DisallowUnknownFields, so any extra field is rejected as
+ *  "request body is not valid JSON". The Bearer token, when set, already
+ *  reaches the remote MCP via `Authorization` in the headers map, so
+ *  dropping authType from the wire has no functional cost. web's
+ *  dmworkmcp/McpCreateModal.handleProbe follows the same rule. */
 export function buildProbeRequest(
   fields: ProbeFormFields,
 ): McpProbeRequest | null {
@@ -80,7 +89,6 @@ export function buildProbeRequest(
   return {
     transport: fields.transport,
     url: trimmedURL,
-    authType: fields.authType,
     headers,
   }
 }

@@ -70,9 +70,24 @@ describe('buildProbeRequest', () => {
     expect(req).toEqual({
       transport: 'streamable-http',
       url: 'https://mcp.example.com/x',
-      authType: 'none',
       headers: undefined,
     })
+  })
+
+  it('never puts authType on the wire (backend rejects unknown fields)', () => {
+    // Regression: service.ProbeRequest doesn't declare authType and the
+    // handler decodes with DisallowUnknownFields — so including it makes
+    // the request come back 400 "request body is not valid JSON". A Bearer
+    // token, when set, rides on headers.Authorization instead.
+    const req = buildProbeRequest({
+      transport: 'sse',
+      url: 'https://example.test/mcp',
+      authType: 'bearer',
+      headersRaw: 'Authorization: Bearer secret',
+    })
+    expect(req).not.toBeNull()
+    expect(req).not.toHaveProperty('authType')
+    expect(req?.headers).toEqual({ Authorization: 'Bearer secret' })
   })
 
   it('parses the headers textarea (Header-Name: value per line)', () => {

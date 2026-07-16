@@ -217,13 +217,15 @@ export async function deleteSystemMcp(id: string): Promise<void> {
 
 // ─── Probe ────────────────────────────────────────────────────────────────
 
-/** POST /admin/api/v1/mcps/probe body. Mirrors the public probe shape (doc
- *  §4.7). Only remote transports (streamable-http / sse) are probable from
- *  the server; stdio would need a desktop client to spawn the process. */
+/** POST /admin/api/v1/mcps/probe body. Mirrors service.ProbeRequest exactly
+ *  — the marketplace decodes with DisallowUnknownFields, so any extra field
+ *  (like a UI-only authType) is rejected as "request body is not valid
+ *  JSON". A Bearer token, when set, lives inside `headers.Authorization`
+ *  and reaches the remote MCP through that path. Only remote transports
+ *  (streamable-http / sse) are probable — stdio needs a desktop runtime. */
 export interface McpProbeRequest {
   transport: McpTransport
   url?: string
-  authType?: McpAuthType
   headers?: Record<string, string>
 }
 
