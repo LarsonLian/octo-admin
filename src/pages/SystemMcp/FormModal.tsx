@@ -1,26 +1,40 @@
 /**
- * Create + edit form for a System MCP. Single-page antd Form with visually
- * distinct card-style sections (subtle bg + accent left border) so a ~15
- * field form still scans quickly. Two-column pairs use CSS Grid (avoids
- * antd's `Space.Compact` which strips inner Form.Item labels).
+ * System MCP create / edit — 3-step wizard aligned with octo-web's
+ * `dmworkmcp/McpCreateModal`. Structural parity is intentional: step order,
+ * field grouping, `+ 新增一条` dynamic lists, slug auto-derive-from-name,
+ * and reset-on-close all match the user-facing modal. antd primitives
+ * replace Semi UI, but the visible flow is identical so the two consoles
+ * feel like one product.
+ *
+ * Differences kept on purpose:
+ *   - No visibility control on step 3 — system MCPs are stamped
+ *     `visibility=system` by the admin endpoint (marketplace v1 §4.10),
+ *     so surfacing 公开/仅自己 here would mislead.
+ *   - Icon input is still emoji-or-URL text; the file upload flow used by
+ *     octo-web rides on the main IM `file/upload/credentials` service that
+ *     admin isn't wired into. Emoji covers 90% of the seeded set.
  */
 
-import { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Form,
   Input,
   Modal,
+  Radio,
   Select,
+  Steps,
+  Tag,
   message,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { CloseOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
 import {
   createSystemMcp,
   updateSystemMcp,
   type CreateMcpParams,
+  type McpAuthType,
   type McpDetail,
   type McpFaq,
   type McpTool,
@@ -29,26 +43,59 @@ import {
 
 const { TextArea } = Input
 
-const CATEGORY_KEYS = ['dev', 'data', 'search', 'productivity', 'ai', 'other']
+const CATEGORY_KEYS = [
+  'dev',
+  'data',
+  'search',
+  'productivity',
+  'ai',
+  'other',
+] as const
+
 const TRANSPORT_OPTIONS: McpTransport[] = ['streamable-http', 'sse', 'stdio']
 
-function isRemote(transport: McpTransport | undefined): boolean {
-  return transport === 'streamable-http' || transport === 'sse'
+/**
+ * Web frontend's `slugifyServerName` reproduced in-place. Same rules so a
+ * user typing an identical name on the two consoles lands on the same slug:
+ *   - lowercase
+ *   - spaces / underscores → hyphen
+ *   - anything outside [a-z0-9-] dropped
+ *   - collapse consecutive hyphens
+ *   - trim leading/trailing hyphens
+ *   - cap at 64 chars
+ */
+function slugifyName(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64)
 }
 
+/**
+ * Form state shape. Distinguished from the wire shape (CreateMcpParams) by
+ * a few "raw" text buffers we parse on submit — same pattern as web:
+ *   - argsRaw: whitespace-separated command args
+ *   - envRaw / headersRaw: `key=value\n...` and `key: value\n...` blocks
+ *   - tags: comma-separated in the input; kept as an array in state
+ */
 interface FormValues {
   name: string
+  slug: string
   category: string
-  icon?: string
-  tagsRaw?: string
-  slogan?: string
+  icon: string
+  tags: string[]
+  slogan: string
   transport: McpTransport
-  url?: string
-  command?: string
-  argsRaw?: string
-  envRaw?: string
-  headersRaw?: string
-  authType: 'none' | 'bearer'
+  url: string
+  authType: McpAuthType
+  command: string
+  argsRaw: string
+  envRaw: string
+  headersRaw: string
   tools: McpTool[]
   usageExamples: string[]
   faqs: McpFaq[]
@@ -57,33 +104,26 @@ interface FormValues {
 
 const EMPTY: FormValues = {
   name: '',
+  slug: '',
   category: 'dev',
   icon: '',
-  tagsRaw: '',
+  tags: [],
   slogan: '',
   transport: 'streamable-http',
   url: '',
+  authType: 'none',
   command: '',
   argsRaw: '',
   envRaw: '',
   headersRaw: '',
-  authType: 'none',
-  tools: [{ name: '', description: '' }],
+  tools: [],
   usageExamples: [],
   faqs: [],
   notes: [],
 }
 
-function parseTags(raw: string): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const chunk of raw.split(',')) {
-    const t = chunk.trim()
-    if (!t || seen.has(t)) continue
-    seen.add(t)
-    out.push(t)
-  }
-  return out
+function isRemote(transport: McpTransport): boolean {
+  return transport === 'streamable-http' || transport === 'sse'
 }
 
 function parseKV(raw: string, sep: '=' | ':'): Record<string, string> {
@@ -102,7 +142,7 @@ function parseKV(raw: string, sep: '=' | ':'): Record<string, string> {
 
 function serializeKV(
   m: Record<string, string> | undefined,
-  sep: '=' | ': '
+  sep: '=' | ': ',
 ): string {
   if (!m) return ''
   return Object.keys(m)
@@ -115,21 +155,22 @@ function detailToValues(d: McpDetail): FormValues {
   const q = d.quickStart
   return {
     name: d.name,
+    slug: q.slug || '',
     category: d.category || 'dev',
     icon: d.icon || '',
-    tagsRaw: (d.tags || []).join(', '),
+    tags: d.tags || [],
     slogan: d.slogan || '',
     transport: q.transport,
     url: q.url || '',
+    authType: q.authType || 'none',
     command: q.command || '',
     argsRaw: (q.args || []).join(' '),
     envRaw: serializeKV(q.env, '='),
     headersRaw: serializeKV(q.headers, ': '),
-    authType: (q.authType as 'none' | 'bearer' | undefined) || 'none',
-    tools: d.tools?.length ? d.tools : [{ name: '', description: '' }],
-    usageExamples: d.usageExamples?.length ? d.usageExamples : [],
-    faqs: d.faqs?.length ? d.faqs : [],
-    notes: d.notes?.length ? d.notes : [],
+    tools: d.tools?.length ? d.tools : [],
+    usageExamples: d.usageExamples || [],
+    faqs: d.faqs || [],
+    notes: d.notes || [],
   }
 }
 
@@ -142,66 +183,166 @@ interface Props {
 
 export default function McpFormModal({ open, editing, onClose, onSaved }: Props) {
   const { t } = useTranslation(['systemMcp', 'common'])
-  const [form] = Form.useForm<FormValues>()
   const isEdit = !!editing
-  const transport = Form.useWatch('transport', form)
-  const icon = Form.useWatch('icon', form)
-  const remote = isRemote(transport)
 
+  const [form, setForm] = useState<FormValues>(EMPTY)
+  const [step, setStep] = useState(0)
+  const [slugTouched, setSlugTouched] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [tagInput, setTagInput] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Reset-on-open matches web's behavior (McpCreateModal:364-389). Editing
+  // → hydrate from detail; create → start blank; either way step goes back
+  // to 0 so a mid-flow re-open never leaks the previous session's state.
   useEffect(() => {
     if (!open) return
-    if (editing) form.setFieldsValue(detailToValues(editing))
-    else form.setFieldsValue(EMPTY)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (editing) {
+      const seed = detailToValues(editing)
+      setForm(seed)
+      // An existing slug counts as user-set so name renames don't clobber it.
+      setSlugTouched(!!seed.slug)
+      setAdvancedOpen(
+        !!seed.envRaw.trim() || !!seed.headersRaw.trim(),
+      )
+    } else {
+      setForm(EMPTY)
+      setSlugTouched(false)
+      setAdvancedOpen(false)
+    }
+    setStep(0)
+    setTagInput('')
   }, [open, editing])
 
-  const buildPayload = (values: FormValues): CreateMcpParams => {
-    const isRemoteNow = isRemote(values.transport)
-    const tools = (values.tools || []).filter((tt) => tt?.name?.trim())
+  const update = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const onNameChange = (v: string) => {
+    setForm((prev) => ({
+      ...prev,
+      name: v,
+      // Only auto-derive slug while the user hasn't manually touched it.
+      // Once slugTouched flips true, name edits leave the slug alone.
+      slug: slugTouched ? prev.slug : slugifyName(v),
+    }))
+  }
+
+  const onSlugChange = (v: string) => {
+    setSlugTouched(true)
+    update('slug', v)
+  }
+
+  const addTag = () => {
+    const t = tagInput.trim()
+    if (!t) return
+    if (form.tags.includes(t)) {
+      setTagInput('')
+      return
+    }
+    setForm((prev) => ({ ...prev, tags: [...prev.tags, t] }))
+    setTagInput('')
+  }
+
+  const removeTag = (idx: number) => {
+    setForm((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((_, i) => i !== idx),
+    }))
+  }
+
+  const remote = isRemote(form.transport)
+
+  const firstError = (): string | null => {
+    if (!form.name.trim()) return t('form.nameRequired')
+    if (form.slug && !/^[a-z0-9-]{1,64}$/.test(form.slug)) {
+      return t('form.slugInvalid', {
+        defaultValue: '服务标识只能包含小写字母、数字与连字符，且 1-64 位',
+      })
+    }
+    if (remote && !form.url.trim()) return t('form.urlRequired')
+    if (!remote && !form.command.trim()) return t('form.commandRequired')
+    return null
+  }
+
+  const goNext = () => {
+    // Step 0 requires a name; step 1 requires a valid connection field.
+    // Step 2 has no required inputs — everything below it is optional.
+    if (step === 0 && !form.name.trim()) {
+      message.warning(t('form.nameRequired'))
+      return
+    }
+    if (step === 1) {
+      if (remote && !form.url.trim()) {
+        message.warning(t('form.urlRequired'))
+        return
+      }
+      if (!remote && !form.command.trim()) {
+        message.warning(t('form.commandRequired'))
+        return
+      }
+    }
+    setStep((s) => Math.min(s + 1, 2))
+  }
+
+  const goPrev = () => setStep((s) => Math.max(s - 1, 0))
+
+  const buildPayload = (): CreateMcpParams => {
+    const args =
+      !remote && form.argsRaw.trim()
+        ? form.argsRaw.trim().split(/\s+/)
+        : undefined
+    const env =
+      !remote && form.envRaw
+        ? (() => {
+            const kv = parseKV(form.envRaw, '=')
+            return Object.keys(kv).length ? kv : undefined
+          })()
+        : undefined
+    const headers = remote && form.headersRaw
+      ? (() => {
+          const kv = parseKV(form.headersRaw, ':')
+          return Object.keys(kv).length ? kv : undefined
+        })()
+      : undefined
     return {
-      name: values.name.trim(),
-      category: values.category,
-      icon: values.icon?.trim() || undefined,
-      tags: values.tagsRaw ? parseTags(values.tagsRaw) : undefined,
-      slogan: values.slogan?.trim() || undefined,
-      transport: values.transport,
-      url: isRemoteNow ? values.url?.trim() || undefined : undefined,
-      authType: isRemoteNow ? values.authType : undefined,
-      command: !isRemoteNow ? values.command?.trim() || undefined : undefined,
-      args: !isRemoteNow && values.argsRaw?.trim()
-        ? values.argsRaw.trim().split(/\s+/)
-        : undefined,
-      env: !isRemoteNow && values.envRaw
-        ? (() => {
-            const kv = parseKV(values.envRaw, '=')
-            return Object.keys(kv).length ? kv : undefined
-          })()
-        : undefined,
-      headers: isRemoteNow && values.headersRaw
-        ? (() => {
-            const kv = parseKV(values.headersRaw, ':')
-            return Object.keys(kv).length ? kv : undefined
-          })()
-        : undefined,
-      tools,
-      usageExamples: (values.usageExamples || []).filter((s) => s.trim()),
-      faqs: (values.faqs || []).filter((f) => f.question.trim()),
-      notes: (values.notes || []).filter((n) => n.trim()),
+      name: form.name.trim(),
+      // Auto-derived slug already fills; on manual override we've kept the
+      // user's value. slugifyName is idempotent, so an already-clean value
+      // survives untouched.
+      slug: form.slug ? slugifyName(form.slug) : undefined,
+      category: form.category,
+      icon: form.icon.trim() || undefined,
+      tags: form.tags.length ? form.tags : undefined,
+      slogan: form.slogan.trim() || undefined,
+      transport: form.transport,
+      url: remote ? form.url.trim() || undefined : undefined,
+      authType: remote ? form.authType : undefined,
+      command: !remote ? form.command.trim() || undefined : undefined,
+      args,
+      env,
+      headers,
+      tools: form.tools.filter((tt) => tt.name.trim()),
+      usageExamples: form.usageExamples.filter((s) => s.trim()),
+      faqs: form.faqs.filter((f) => f.question.trim()),
+      notes: form.notes.filter((n) => n.trim()),
     }
   }
 
-  const handleOk = async () => {
-    let values: FormValues
-    try {
-      values = await form.validateFields()
-    } catch {
+  const handleSubmit = async () => {
+    const err = firstError()
+    if (err) {
+      message.warning(err)
+      // Jump back to the step that owns the failing field so the user sees it.
+      if (err === t('form.nameRequired') || err.startsWith('服务标识')) {
+        setStep(0)
+      } else {
+        setStep(1)
+      }
       return
     }
-    const payload = buildPayload(values)
-    if (!payload.tools?.length) {
-      message.warning(t('form.toolsHint'))
-      return
-    }
+    const payload = buildPayload()
+    setSubmitting(true)
     try {
       if (isEdit && editing) {
         const updated = await updateSystemMcp(editing.id, payload)
@@ -213,9 +354,13 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
         onSaved()
       }
       onClose()
-    } catch (err) {
-      const fallback = isEdit ? t('modal.updateFailed') : t('modal.createFailed')
-      message.error(err instanceof ApiError ? err.message : fallback)
+    } catch (e) {
+      const fallback = isEdit
+        ? t('modal.updateFailed')
+        : t('modal.createFailed')
+      message.error(e instanceof ApiError ? e.message : fallback)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -225,7 +370,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
         value: k,
         label: t(`categoryOptions.${k}`, { defaultValue: k }),
       })),
-    [t]
+    [t],
   )
   const transportOptions = useMemo(
     () =>
@@ -233,361 +378,517 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
         value: tr,
         label: t(`transportOptions.${tr}`, { defaultValue: tr }),
       })),
-    [t]
+    [t],
   )
 
-  const iconIsImage = !!icon && (icon.startsWith('http') || icon.startsWith('data:'))
+  const iconIsImage =
+    !!form.icon &&
+    (form.icon.startsWith('http') || form.icon.startsWith('data:'))
+
+  // ── Footer buttons ─────────────────────────────────────────────────────
+  // Layout matches web: left = ← 上一步 (hidden on step 0), right = 下一步 → or 提交
+  const footer = (
+    <div className="mcp-form-footer">
+      <div className="mcp-form-footer__left">
+        {step > 0 && <Button onClick={goPrev}>← {t('form.prevStep')}</Button>}
+      </div>
+      <div className="mcp-form-footer__right">
+        <Button onClick={onClose}>{t('modal.cancel')}</Button>
+        {step < 2 ? (
+          <Button type="primary" onClick={goNext}>
+            {t('form.nextStep')} →
+          </Button>
+        ) : (
+          <Button type="primary" loading={submitting} onClick={handleSubmit}>
+            {isEdit ? t('modal.save') : t('modal.submit')}
+          </Button>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <Modal
       title={isEdit ? t('modal.editTitle') : t('modal.createTitle')}
       open={open}
-      onOk={handleOk}
       onCancel={onClose}
-      okText={isEdit ? t('modal.save') : t('modal.submit')}
-      cancelText={t('modal.cancel')}
       destroyOnClose
       width={720}
+      footer={footer}
       styles={{ body: { maxHeight: '72vh', overflowY: 'auto' } }}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={EMPTY}
-        preserve={false}
-        requiredMark="optional"
-        className="mcp-form"
-      >
-        {/* Section 1 — Basics */}
-        <FormSection
-          title={t('form.sectionBasic')}
-          desc={t('form.sectionBasicDesc')}
-        >
+      <Steps
+        current={step}
+        size="small"
+        onChange={(s) => {
+          // Same tab-jump behavior as web: any step is clickable. Forward
+          // jumps still gate through firstError so we don't skip past a
+          // required field silently.
+          if (s > step) {
+            const err = firstError()
+            if (err && step === 0 && err === t('form.nameRequired')) {
+              message.warning(err)
+              return
+            }
+          }
+          setStep(s)
+        }}
+        items={[
+          { title: t('form.step.basic') },
+          { title: t('form.step.connect') },
+          { title: t('form.step.docs') },
+        ]}
+        style={{ marginBottom: 24 }}
+      />
+
+      {/* Step 1 — Basic info */}
+      {step === 0 && (
+        <div className="mcp-form-step">
           <div className="mcp-form-row mcp-form-row--icon">
             <div className="mcp-form-icon-preview" aria-hidden>
               {iconIsImage ? (
-                <img src={icon} alt="" />
+                <img src={form.icon} alt="" />
               ) : (
-                <span>{icon || '🧩'}</span>
+                <span>{form.icon || '🧩'}</span>
               )}
             </div>
             <div className="mcp-form-row__fields">
               <Form.Item
-                name="name"
-                label={t('form.name')}
-                rules={[{ required: true, message: t('form.nameRequired') }]}
+                label={<span>{t('form.name')} <span style={{ color: '#f5222d' }}>*</span></span>}
                 style={{ marginBottom: 12 }}
               >
-                <Input placeholder={t('form.namePlaceholder')} maxLength={80} />
+                <Input
+                  value={form.name}
+                  onChange={(e) => onNameChange(e.target.value)}
+                  placeholder={t('form.namePlaceholder')}
+                  maxLength={64}
+                />
               </Form.Item>
               <Form.Item
-                name="icon"
                 label={t('form.iconOrEmoji')}
                 extra={t('form.iconHint')}
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder={t('form.iconPlaceholder')} />
+                <Input
+                  value={form.icon}
+                  onChange={(e) => update('icon', e.target.value)}
+                  placeholder={t('form.iconPlaceholder')}
+                />
               </Form.Item>
             </div>
           </div>
 
+          <Form.Item
+            label={t('form.slug', { defaultValue: '服务标识 (slug)' })}
+            extra={t('form.slugHint', {
+              defaultValue:
+                '生成 mcpServers JSON 时用作 key，仅限英文小写、数字、连字符；留空自动根据名称生成',
+            })}
+          >
+            <Input
+              value={form.slug}
+              onChange={(e) => onSlugChange(e.target.value)}
+              placeholder={t('form.slugPlaceholder', {
+                defaultValue: '例如 github-mcp',
+              })}
+              maxLength={64}
+            />
+          </Form.Item>
+
           <div className="mcp-form-grid mcp-form-grid--2">
-            <Form.Item name="category" label={t('form.category')}>
-              <Select options={categoryOptions} />
+            <Form.Item label={t('form.category')}>
+              <Select
+                value={form.category}
+                onChange={(v) => update('category', v)}
+                options={categoryOptions}
+              />
             </Form.Item>
-            <Form.Item
-              name="tagsRaw"
-              label={t('form.tags')}
-              extra={t('form.tagsHint')}
-            >
-              <Input placeholder={t('form.tagsPlaceholder')} />
+            <Form.Item label={t('form.tags')} extra={t('form.tagsPillHint', { defaultValue: '输入后回车添加' })}>
+              <div>
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onPressEnter={(e) => {
+                    e.preventDefault()
+                    addTag()
+                  }}
+                  onBlur={addTag}
+                  placeholder={t('form.tagsPillPlaceholder', {
+                    defaultValue: '输入后按回车添加',
+                  })}
+                />
+                {form.tags.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {form.tags.map((tg, i) => (
+                      <Tag
+                        key={`${tg}-${i}`}
+                        closable
+                        onClose={(e) => {
+                          e.preventDefault()
+                          removeTag(i)
+                        }}
+                      >
+                        {tg}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Form.Item>
           </div>
 
-          <Form.Item name="slogan" label={t('form.slogan')} style={{ marginBottom: 0 }}>
-            <Input placeholder={t('form.sloganPlaceholder')} maxLength={120} />
+          <Form.Item label={t('form.slogan')} style={{ marginBottom: 0 }}>
+            <Input
+              value={form.slogan}
+              onChange={(e) => update('slogan', e.target.value)}
+              placeholder={t('form.sloganPlaceholder')}
+              maxLength={200}
+            />
           </Form.Item>
-        </FormSection>
+        </div>
+      )}
 
-        {/* Section 2 — Connection */}
-        <FormSection
-          title={t('form.sectionConnect')}
-          desc={t('form.sectionConnectDesc')}
-        >
-          <Form.Item name="transport" label={t('form.transport')}>
-            <Select options={transportOptions} />
+      {/* Step 2 — Connect config */}
+      {step === 1 && (
+        <div className="mcp-form-step">
+          <Form.Item label={t('form.transport')}>
+            <Select
+              value={form.transport}
+              onChange={(v: McpTransport) => update('transport', v)}
+              options={transportOptions}
+            />
           </Form.Item>
+
           {remote ? (
             <>
-              <Form.Item
-                name="url"
-                label={t('form.url')}
-                rules={[
-                  {
-                    validator: (_, v) => {
-                      if (!isRemote(form.getFieldValue('transport'))) return Promise.resolve()
-                      return (v || '').trim()
-                        ? Promise.resolve()
-                        : Promise.reject(new Error(t('form.urlRequired')))
-                    },
-                  },
-                ]}
-              >
-                <Input placeholder={t('form.urlPlaceholder')} />
-              </Form.Item>
-              <Form.Item name="authType" label={t('form.authType')}>
-                <Select
-                  options={[
-                    { value: 'none', label: t('form.authTypeNone') },
-                    { value: 'bearer', label: t('form.authTypeBearer') },
-                  ]}
+              <Form.Item label={<span>{t('form.url')} <span style={{ color: '#f5222d' }}>*</span></span>}>
+                <Input
+                  value={form.url}
+                  onChange={(e) => update('url', e.target.value)}
+                  placeholder={t('form.urlPlaceholder')}
+                  maxLength={2048}
                 />
               </Form.Item>
-              <Form.Item
-                name="headersRaw"
-                label={t('form.headers')}
-                extra={t('form.headersHint')}
-                style={{ marginBottom: 0 }}
-              >
-                <TextArea rows={3} placeholder={t('form.headersPlaceholder')} />
+              <Form.Item label={t('form.authType')}>
+                <Radio.Group
+                  value={form.authType}
+                  onChange={(e) => update('authType', e.target.value)}
+                  buttonStyle="solid"
+                >
+                  <Radio.Button value="none">{t('form.authTypeNone')}</Radio.Button>
+                  <Radio.Button value="bearer">
+                    {t('form.authTypeBearer')}
+                  </Radio.Button>
+                </Radio.Group>
               </Form.Item>
             </>
           ) : (
             <>
               <Form.Item
-                name="command"
-                label={t('form.command')}
-                rules={[
-                  {
-                    validator: (_, v) => {
-                      if (isRemote(form.getFieldValue('transport'))) return Promise.resolve()
-                      return (v || '').trim()
-                        ? Promise.resolve()
-                        : Promise.reject(new Error(t('form.commandRequired')))
-                    },
-                  },
-                ]}
+                label={<span>{t('form.command')} <span style={{ color: '#f5222d' }}>*</span></span>}
               >
-                <Input placeholder={t('form.commandPlaceholder')} />
+                <Input
+                  value={form.command}
+                  onChange={(e) => update('command', e.target.value)}
+                  placeholder={t('form.commandPlaceholder')}
+                />
               </Form.Item>
-              <Form.Item name="argsRaw" label={t('form.args')} extra={t('form.argsHint')}>
-                <Input placeholder={t('form.argsPlaceholder')} />
-              </Form.Item>
-              <Form.Item
-                name="envRaw"
-                label={t('form.env')}
-                extra={t('form.envHint')}
-                style={{ marginBottom: 0 }}
-              >
-                <TextArea rows={3} placeholder={t('form.envPlaceholder')} />
+              <Form.Item label={t('form.args')} extra={t('form.argsHint')}>
+                <Input
+                  value={form.argsRaw}
+                  onChange={(e) => update('argsRaw', e.target.value)}
+                  placeholder={t('form.argsPlaceholder')}
+                />
               </Form.Item>
             </>
           )}
-        </FormSection>
 
-        {/* Section 3 — Tools */}
-        <FormSection
-          title={t('form.sectionTools')}
-          desc={t('form.sectionToolsDesc')}
-        >
-          <Form.List name="tools">
-            {(fields, { add, remove }) => (
-              <div className="mcp-form-list">
-                {fields.map((field, idx) => (
-                  <div className="mcp-form-tool" key={field.key}>
-                    <div className="mcp-form-tool__grow">
-                      <Form.Item
-                        {...field}
-                        name={[field.name, 'name']}
-                        style={{ marginBottom: 8 }}
-                      >
-                        <Input placeholder={t('form.toolNamePlaceholder')} />
-                      </Form.Item>
-                      <Form.Item
-                        {...field}
-                        name={[field.name, 'description']}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input placeholder={t('form.toolDescPlaceholder')} />
-                      </Form.Item>
-                    </div>
-                    <div className="mcp-form-tool__aside">
-                      <span className="mcp-form-tool__idx">#{idx + 1}</span>
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(field.name)}
-                      />
-                    </div>
-                  </div>
-                ))}
-                <Button
-                  type="dashed"
-                  icon={<PlusOutlined />}
-                  onClick={() => add({ name: '', description: '' })}
-                  block
-                >
-                  {t('form.toolAdd')}
-                </Button>
+          {/* Advanced (env / headers) collapse — matches web's disclosure. */}
+          <div style={{ marginTop: 8 }}>
+            <Button
+              type="link"
+              size="small"
+              style={{ paddingLeft: 0 }}
+              onClick={() => setAdvancedOpen((v) => !v)}
+            >
+              {advancedOpen ? '▾' : '▸'}{' '}
+              {t('form.advancedToggle', { defaultValue: '显示高级设置' })}
+            </Button>
+          </div>
+
+          {advancedOpen && remote && (
+            <Form.Item
+              label={t('form.headers')}
+              extra={t('form.headersHint')}
+              style={{ marginBottom: 0 }}
+            >
+              <TextArea
+                rows={3}
+                value={form.headersRaw}
+                onChange={(e) => update('headersRaw', e.target.value)}
+                placeholder={t('form.headersPlaceholder')}
+              />
+            </Form.Item>
+          )}
+
+          {advancedOpen && !remote && (
+            <Form.Item
+              label={t('form.env')}
+              extra={t('form.envHint')}
+              style={{ marginBottom: 0 }}
+            >
+              <TextArea
+                rows={3}
+                value={form.envRaw}
+                onChange={(e) => update('envRaw', e.target.value)}
+                placeholder={t('form.envPlaceholder')}
+              />
+            </Form.Item>
+          )}
+
+          {/* Tools list — inline `+ 新增一条` matches web behavior. */}
+          <div style={{ marginTop: 16 }}>
+            <DynamicListHeader
+              title={t('form.sectionTools')}
+              desc={t('form.sectionToolsDesc')}
+              onAdd={() =>
+                update('tools', [...form.tools, { name: '', description: '' }])
+              }
+            />
+            {form.tools.length === 0 ? (
+              <div className="mcp-form-empty">
+                {t('form.toolsEmpty', {
+                  defaultValue: '尚未添加工具，点击「新增一条」添加',
+                })}
               </div>
-            )}
-          </Form.List>
-        </FormSection>
-
-        {/* Section 4 — Docs */}
-        <FormSection
-          title={t('form.sectionDocs')}
-          desc={t('form.sectionDocsDesc')}
-          optional
-        >
-          <MiniListField
-            label={t('detail.section.examples')}
-            name="usageExamples"
-            addLabel={t('form.exampleAdd')}
-            placeholder={t('form.examplePlaceholder')}
-          />
-
-          <Form.Item label={t('detail.section.faqs')} style={{ marginBottom: 16 }}>
-            <Form.List name="faqs">
-              {(fields, { add, remove }) => (
-                <div className="mcp-form-list">
-                  {fields.map((field, idx) => (
-                    <div className="mcp-form-faq" key={field.key}>
-                      <div className="mcp-form-faq__head">
-                        <span className="mcp-form-tool__idx">#{idx + 1}</span>
-                        <Button
-                          type="text"
-                          size="small"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => remove(field.name)}
-                        />
-                      </div>
-                      <Form.Item
-                        {...field}
-                        name={[field.name, 'question']}
-                        style={{ marginBottom: 8 }}
-                      >
-                        <Input placeholder={t('form.faqQuestionPlaceholder')} />
-                      </Form.Item>
-                      <Form.Item
-                        {...field}
-                        name={[field.name, 'answer']}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <TextArea rows={2} placeholder={t('form.faqAnswerPlaceholder')} />
-                      </Form.Item>
-                    </div>
-                  ))}
-                  <Button
-                    type="dashed"
-                    icon={<PlusOutlined />}
-                    onClick={() => add({ question: '', answer: '' })}
-                    block
-                  >
-                    {t('form.faqAdd')}
-                  </Button>
+            ) : (
+              form.tools.map((tool, idx) => (
+                <div className="mcp-form-tool" key={idx}>
+                  <div className="mcp-form-tool__grow">
+                    <Input
+                      value={tool.name}
+                      placeholder={t('form.toolNamePlaceholder')}
+                      onChange={(e) => {
+                        const next = [...form.tools]
+                        next[idx] = { ...next[idx], name: e.target.value }
+                        update('tools', next)
+                      }}
+                      style={{ marginBottom: 8 }}
+                    />
+                    <Input
+                      value={tool.description}
+                      placeholder={t('form.toolDescPlaceholder')}
+                      onChange={(e) => {
+                        const next = [...form.tools]
+                        next[idx] = { ...next[idx], description: e.target.value }
+                        update('tools', next)
+                      }}
+                    />
+                  </div>
+                  <div className="mcp-form-tool__aside">
+                    <span className="mcp-form-tool__idx">#{idx + 1}</span>
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() =>
+                        update(
+                          'tools',
+                          form.tools.filter((_, i) => i !== idx),
+                        )
+                      }
+                    />
+                  </div>
                 </div>
-              )}
-            </Form.List>
-          </Form.Item>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
-          <MiniListField
-            label={t('detail.section.notes')}
-            name="notes"
-            addLabel={t('form.noteAdd')}
-            placeholder={t('form.notePlaceholder')}
-            marginBottomZero
+      {/* Step 3 — Docs (system MCPs skip visibility) */}
+      {step === 2 && (
+        <div className="mcp-form-step">
+          <SimpleTextList
+            title={t('detail.section.examples')}
+            desc={t('form.exampleDesc', {
+              defaultValue: '示范用户可能怎么使用（选填）',
+            })}
+            values={form.usageExamples}
+            onChange={(next) => update('usageExamples', next)}
+            placeholder={t('form.examplePlaceholder')}
+            addLabel={t('form.exampleAdd')}
           />
-        </FormSection>
-      </Form>
+          <FaqList
+            values={form.faqs}
+            onChange={(next) => update('faqs', next)}
+            addLabel={t('form.faqAdd')}
+            desc={t('form.faqDesc', {
+              defaultValue: '预置的问题与解答（选填）',
+            })}
+            title={t('detail.section.faqs')}
+            qPlaceholder={t('form.faqQuestionPlaceholder')}
+            aPlaceholder={t('form.faqAnswerPlaceholder')}
+          />
+          <SimpleTextList
+            title={t('detail.section.notes')}
+            desc={t('form.noteDesc', {
+              defaultValue: '使用前的提醒（选填）',
+            })}
+            values={form.notes}
+            onChange={(next) => update('notes', next)}
+            placeholder={t('form.notePlaceholder')}
+            addLabel={t('form.noteAdd')}
+          />
+        </div>
+      )}
     </Modal>
   )
 }
 
 // ─── Presentation helpers ─────────────────────────────────────────────────
 
-function FormSection({
+function DynamicListHeader({
   title,
   desc,
-  optional,
-  children,
+  onAdd,
 }: {
   title: React.ReactNode
   desc?: React.ReactNode
-  optional?: boolean
-  children: React.ReactNode
+  onAdd: () => void
 }) {
-  const { t } = useTranslation(['systemMcp'])
   return (
-    <section className="mcp-form-section">
-      <header className="mcp-form-section__head">
-        <div className="mcp-form-section__title">
-          {title}
-          {optional && (
-            <span className="mcp-form-section__optional">
-              {t('form.optional')}
-            </span>
-          )}
-        </div>
-        {desc && <div className="mcp-form-section__desc">{desc}</div>}
-      </header>
-      <div className="mcp-form-section__body">{children}</div>
-    </section>
+    <div className="mcp-form-list-head">
+      <div>
+        <div className="mcp-form-list-head__title">{title}</div>
+        {desc && <div className="mcp-form-list-head__desc">{desc}</div>}
+      </div>
+      <Button size="small" icon={<PlusOutlined />} onClick={onAdd}>
+        + 新增一条
+      </Button>
+    </div>
   )
 }
 
-/** Reusable Form.List of plain-text rows (usageExamples / notes). */
-function MiniListField({
-  label,
-  name,
-  addLabel,
+function SimpleTextList({
+  title,
+  desc,
+  values,
+  onChange,
   placeholder,
-  marginBottomZero,
+  addLabel,
 }: {
-  label: string
-  name: 'usageExamples' | 'notes'
-  addLabel: string
+  title: React.ReactNode
+  desc?: React.ReactNode
+  values: string[]
+  onChange: (next: string[]) => void
   placeholder: string
-  marginBottomZero?: boolean
+  addLabel: string
 }) {
   return (
-    <Form.Item label={label} style={{ marginBottom: marginBottomZero ? 0 : 16 }}>
-      <Form.List name={name}>
-        {(fields, { add, remove }) => (
-          <div className="mcp-form-list">
-            {fields.map((field, idx) => (
-              <div className="mcp-form-mini-row" key={field.key}>
-                <span className="mcp-form-tool__idx">#{idx + 1}</span>
-                <Form.Item
-                  {...field}
-                  name={field.name}
-                  style={{ flex: 1, marginBottom: 0 }}
-                >
-                  <Input placeholder={placeholder} />
-                </Form.Item>
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => remove(field.name)}
-                />
-              </div>
-            ))}
+    <div className="mcp-form-list">
+      <DynamicListHeader
+        title={title}
+        desc={desc}
+        onAdd={() => onChange([...values, ''])}
+      />
+      {values.length === 0 ? (
+        <div className="mcp-form-empty">
+          {`还没有内容，点击右上角「${addLabel}」添加`}
+        </div>
+      ) : (
+        values.map((val, idx) => (
+          <div className="mcp-form-mini-row" key={idx}>
+            <span className="mcp-form-tool__idx">#{idx + 1}</span>
+            <Input
+              value={val}
+              placeholder={placeholder}
+              onChange={(e) => {
+                const next = [...values]
+                next[idx] = e.target.value
+                onChange(next)
+              }}
+              style={{ flex: 1 }}
+            />
             <Button
-              type="dashed"
-              icon={<PlusOutlined />}
-              onClick={() => add('')}
-              block
-            >
-              {addLabel}
-            </Button>
+              type="text"
+              size="small"
+              danger
+              icon={<CloseOutlined />}
+              onClick={() => onChange(values.filter((_, i) => i !== idx))}
+            />
           </div>
-        )}
-      </Form.List>
-    </Form.Item>
+        ))
+      )}
+    </div>
+  )
+}
+
+function FaqList({
+  values,
+  onChange,
+  addLabel,
+  desc,
+  title,
+  qPlaceholder,
+  aPlaceholder,
+}: {
+  values: McpFaq[]
+  onChange: (next: McpFaq[]) => void
+  addLabel: string
+  desc: React.ReactNode
+  title: React.ReactNode
+  qPlaceholder: string
+  aPlaceholder: string
+}) {
+  return (
+    <div className="mcp-form-list">
+      <DynamicListHeader
+        title={title}
+        desc={desc}
+        onAdd={() => onChange([...values, { question: '', answer: '' }])}
+      />
+      {values.length === 0 ? (
+        <div className="mcp-form-empty">
+          {`还没有内容，点击右上角「${addLabel}」添加`}
+        </div>
+      ) : (
+        values.map((faq, idx) => (
+          <div className="mcp-form-faq" key={idx}>
+            <div className="mcp-form-faq__head">
+              <span className="mcp-form-tool__idx">#{idx + 1}</span>
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => onChange(values.filter((_, i) => i !== idx))}
+              />
+            </div>
+            <Input
+              value={faq.question}
+              placeholder={qPlaceholder}
+              onChange={(e) => {
+                const next = [...values]
+                next[idx] = { ...next[idx], question: e.target.value }
+                onChange(next)
+              }}
+              style={{ marginBottom: 8 }}
+            />
+            <Input.TextArea
+              rows={2}
+              value={faq.answer}
+              placeholder={aPlaceholder}
+              onChange={(e) => {
+                const next = [...values]
+                next[idx] = { ...next[idx], answer: e.target.value }
+                onChange(next)
+              }}
+            />
+          </div>
+        ))
+      )}
+    </div>
   )
 }

@@ -69,6 +69,10 @@ export interface McpFaq {
 export interface McpQuickStart {
   transport: McpTransport
   serverName: string
+  /** ASCII identifier used as the JSON key in the generated mcpServers
+   *  snippet (mcp-v1.md §3, "服务标识"). Present on records created after
+   *  migration 03; matches `^[a-z0-9-]{1,64}$`. Empty on legacy rows. */
+  slug?: string
   url?: string
   authType?: McpAuthType
   headers?: Record<string, string>
@@ -105,6 +109,9 @@ export interface McpDetail extends McpListItem {
  *  admin endpoint (always stamped to `system`) so callers may omit it. */
 export interface CreateMcpParams {
   name: string
+  /** Optional ASCII identifier. When empty the server auto-slugifies name.
+   *  Must match `^[a-z0-9-]{1,64}$` when provided. */
+  slug?: string
   category: string
   icon?: string
   tags?: string[]
@@ -140,6 +147,7 @@ export interface ListMcpResponse {
  *  cannot accidentally demote a system MCP. */
 export interface PatchMcpParams {
   name?: string
+  slug?: string
   category?: string
   icon?: string
   tags?: string[]
