@@ -2,9 +2,9 @@
  * System MCP create / edit — 3-step wizard aligned with octo-web's
  * `dmworkmcp/McpCreateModal`. Structural parity is intentional: step order,
  * field grouping, `+ 新增一条` dynamic lists, slug auto-derive-from-name,
- * and reset-on-close all match the user-facing modal. antd primitives
- * replace Semi UI, but the visible flow is identical so the two consoles
- * feel like one product.
+ * `试连 / 获取工具列表` probe, and reset-on-close all match the user-facing
+ * modal. antd primitives replace Semi UI, but the visible flow is identical
+ * so the two consoles feel like one product.
  *
  * Differences kept on purpose:
  *   - No visibility control on step 3 — system MCPs are stamped
@@ -12,7 +12,8 @@
  *     so surfacing 公开/仅自己 here would mislead.
  *   - Icon input is still emoji-or-URL text; the file upload flow used by
  *     octo-web rides on the main IM `file/upload/credentials` service that
- *     admin isn't wired into. Emoji covers 90% of the seeded set.
+ *     admin isn't wired into. Emoji covers 90% of the seeded set; the 72×72
+ *     preview tile mirrors web's visual language even without an uploader.
  */
 
 import React, { useEffect, useMemo, useState } from 'react'
@@ -27,16 +28,23 @@ import {
   Tag,
   message,
 } from 'antd'
-import { CloseOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import {
+  CloseOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
 import {
   createSystemMcp,
+  probeSystemMcp,
   updateSystemMcp,
   type CreateMcpParams,
   type McpAuthType,
   type McpDetail,
   type McpFaq,
+  type McpProbeRequest,
   type McpTool,
   type McpTransport,
 } from '../../api/mcp'
@@ -191,6 +199,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [probing, setProbing] = useState(false)
 
   // Reset-on-open matches web's behavior (McpCreateModal:364-389). Editing
   // → hydrate from detail; create → start blank; either way step goes back
@@ -329,6 +338,59 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
     }
   }
 
+  // ── Probe ──────────────────────────────────────────────────────────────
+  // Runs a live MCP handshake against the server described by the form and
+  // fills tools[] from the returned tool list. Only remote transports are
+  // probable — stdio would need a desktop client to spawn the process
+  // (mcp-v1.md §4.7). Backend returns HTTP 200 even on probe failure with
+  // ok=false + error.code, so we branch on `resp.ok`.
+  const handleProbe = async () => {
+    if (!remote) return
+    if (!form.url.trim()) {
+      message.warning(t('form.urlRequired'))
+      return
+    }
+    const req: McpProbeRequest = {
+      transport: form.transport,
+      url: form.url.trim(),
+      authType: form.authType,
+      headers: form.headersRaw
+        ? (() => {
+            const kv = parseKV(form.headersRaw, ':')
+            return Object.keys(kv).length ? kv : undefined
+          })()
+        : undefined,
+    }
+    setProbing(true)
+    try {
+      const resp = await probeSystemMcp(req)
+      if (!resp.ok) {
+        const code = resp.error?.code
+        message.error(
+          code
+            ? t(`form.probeError.${code}`, {
+                defaultValue: resp.error?.message || t('form.probeFailed'),
+              })
+            : resp.error?.message || t('form.probeFailed'),
+        )
+        return
+      }
+      update('tools', resp.tools)
+      message.success(
+        t('form.probeSuccess', {
+          count: resp.tools.length,
+          defaultValue: `已获取 ${resp.tools.length} 个工具`,
+        }),
+      )
+    } catch (e) {
+      message.error(
+        e instanceof ApiError ? e.message : t('form.probeFailed'),
+      )
+    } finally {
+      setProbing(false)
+    }
+  }
+
   const handleSubmit = async () => {
     const err = firstError()
     if (err) {
@@ -386,14 +448,16 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
     (form.icon.startsWith('http') || form.icon.startsWith('data:'))
 
   // ── Footer buttons ─────────────────────────────────────────────────────
-  // Layout matches web: left = ← 上一步 (hidden on step 0), right = 下一步 → or 提交
+  // Layout matches web: left = ← 上一步 (hidden on step 0), right = 下一步 →
+  // or 提交. The modal's × close button covers "cancel", so we don't repeat
+  // a Cancel button in the footer (that was a leftover from a pre-wizard
+  // draft — web's wizard has no such button).
   const footer = (
     <div className="mcp-form-footer">
       <div className="mcp-form-footer__left">
         {step > 0 && <Button onClick={goPrev}>← {t('form.prevStep')}</Button>}
       </div>
       <div className="mcp-form-footer__right">
-        <Button onClick={onClose}>{t('modal.cancel')}</Button>
         {step < 2 ? (
           <Button type="primary" onClick={goNext}>
             {t('form.nextStep')} →
@@ -413,10 +477,13 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
       open={open}
       onCancel={onClose}
       destroyOnClose
-      width={720}
+      width={900}
       footer={footer}
       styles={{ body: { maxHeight: '72vh', overflowY: 'auto' } }}
+      classNames={{ body: 'mcp-form' }}
+      rootClassName="admin-shell"
     >
+      <Form component="div" layout="vertical" colon={false}>
       <Steps
         current={step}
         size="small"
@@ -444,265 +511,337 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
       {/* Step 1 — Basic info */}
       {step === 0 && (
         <div className="mcp-form-step">
-          <div className="mcp-form-row mcp-form-row--icon">
-            <div className="mcp-form-icon-preview" aria-hidden>
-              {iconIsImage ? (
-                <img src={form.icon} alt="" />
-              ) : (
-                <span>{form.icon || '🧩'}</span>
-              )}
+          <div className="mcp-form-section">
+            <div className="mcp-form-section__head">
+              <div className="mcp-form-section__title">
+                {t('form.sectionBasics', { defaultValue: '基本信息' })}
+              </div>
+              <div className="mcp-form-section__desc">
+                {t('form.sectionBasicsDesc', {
+                  defaultValue: '展示在市场卡片和详情页顶部',
+                })}
+              </div>
             </div>
-            <div className="mcp-form-row__fields">
+            <div className="mcp-form-section__body">
+              <div className="mcp-form-row mcp-form-row--icon">
+                <div className="mcp-form-icon-preview" aria-hidden>
+                  {iconIsImage ? (
+                    <img src={form.icon} alt="" />
+                  ) : (
+                    <span>{form.icon || '🧩'}</span>
+                  )}
+                </div>
+                <div className="mcp-form-row__fields">
+                  <Form.Item
+                    label={<span>{t('form.name')} <span style={{ color: '#f5222d' }}>*</span></span>}
+                    style={{ marginBottom: 12 }}
+                  >
+                    <Input
+                      value={form.name}
+                      onChange={(e) => onNameChange(e.target.value)}
+                      placeholder={t('form.namePlaceholder')}
+                      maxLength={64}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={t('form.iconOrEmoji')}
+                    extra={t('form.iconHint')}
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      value={form.icon}
+                      onChange={(e) => update('icon', e.target.value)}
+                      placeholder={t('form.iconPlaceholder')}
+                    />
+                  </Form.Item>
+                </div>
+              </div>
+
               <Form.Item
-                label={<span>{t('form.name')} <span style={{ color: '#f5222d' }}>*</span></span>}
-                style={{ marginBottom: 12 }}
+                label={t('form.slug', { defaultValue: '服务标识 (slug)' })}
+                extra={t('form.slugHint', {
+                  defaultValue:
+                    '生成 mcpServers JSON 时用作 key，仅限英文小写、数字、连字符；留空自动根据名称生成',
+                })}
               >
                 <Input
-                  value={form.name}
-                  onChange={(e) => onNameChange(e.target.value)}
-                  placeholder={t('form.namePlaceholder')}
+                  value={form.slug}
+                  onChange={(e) => onSlugChange(e.target.value)}
+                  placeholder={t('form.slugPlaceholder', {
+                    defaultValue: '例如 github-mcp',
+                  })}
                   maxLength={64}
                 />
               </Form.Item>
-              <Form.Item
-                label={t('form.iconOrEmoji')}
-                extra={t('form.iconHint')}
-                style={{ marginBottom: 0 }}
-              >
+
+              <div className="mcp-form-grid mcp-form-grid--2">
+                <Form.Item label={t('form.category')}>
+                  <Select
+                    value={form.category}
+                    onChange={(v) => update('category', v)}
+                    options={categoryOptions}
+                  />
+                </Form.Item>
+                <Form.Item
+                  label={t('form.tags')}
+                  extra={t('form.tagsPillHint', { defaultValue: '输入后回车添加' })}
+                >
+                  <div>
+                    <Input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onPressEnter={(e) => {
+                        e.preventDefault()
+                        addTag()
+                      }}
+                      onBlur={addTag}
+                      placeholder={t('form.tagsPillPlaceholder', {
+                        defaultValue: '输入后按回车添加',
+                      })}
+                    />
+                    {form.tags.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        {form.tags.map((tg, i) => (
+                          <Tag
+                            key={`${tg}-${i}`}
+                            closable
+                            onClose={(e) => {
+                              e.preventDefault()
+                              removeTag(i)
+                            }}
+                          >
+                            {tg}
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </Form.Item>
+              </div>
+
+              <Form.Item label={t('form.slogan')} style={{ marginBottom: 0 }}>
                 <Input
-                  value={form.icon}
-                  onChange={(e) => update('icon', e.target.value)}
-                  placeholder={t('form.iconPlaceholder')}
+                  value={form.slogan}
+                  onChange={(e) => update('slogan', e.target.value)}
+                  placeholder={t('form.sloganPlaceholder')}
+                  maxLength={200}
                 />
               </Form.Item>
             </div>
           </div>
-
-          <Form.Item
-            label={t('form.slug', { defaultValue: '服务标识 (slug)' })}
-            extra={t('form.slugHint', {
-              defaultValue:
-                '生成 mcpServers JSON 时用作 key，仅限英文小写、数字、连字符；留空自动根据名称生成',
-            })}
-          >
-            <Input
-              value={form.slug}
-              onChange={(e) => onSlugChange(e.target.value)}
-              placeholder={t('form.slugPlaceholder', {
-                defaultValue: '例如 github-mcp',
-              })}
-              maxLength={64}
-            />
-          </Form.Item>
-
-          <div className="mcp-form-grid mcp-form-grid--2">
-            <Form.Item label={t('form.category')}>
-              <Select
-                value={form.category}
-                onChange={(v) => update('category', v)}
-                options={categoryOptions}
-              />
-            </Form.Item>
-            <Form.Item label={t('form.tags')} extra={t('form.tagsPillHint', { defaultValue: '输入后回车添加' })}>
-              <div>
-                <Input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onPressEnter={(e) => {
-                    e.preventDefault()
-                    addTag()
-                  }}
-                  onBlur={addTag}
-                  placeholder={t('form.tagsPillPlaceholder', {
-                    defaultValue: '输入后按回车添加',
-                  })}
-                />
-                {form.tags.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    {form.tags.map((tg, i) => (
-                      <Tag
-                        key={`${tg}-${i}`}
-                        closable
-                        onClose={(e) => {
-                          e.preventDefault()
-                          removeTag(i)
-                        }}
-                      >
-                        {tg}
-                      </Tag>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Form.Item>
-          </div>
-
-          <Form.Item label={t('form.slogan')} style={{ marginBottom: 0 }}>
-            <Input
-              value={form.slogan}
-              onChange={(e) => update('slogan', e.target.value)}
-              placeholder={t('form.sloganPlaceholder')}
-              maxLength={200}
-            />
-          </Form.Item>
         </div>
       )}
 
       {/* Step 2 — Connect config */}
       {step === 1 && (
         <div className="mcp-form-step">
-          <Form.Item label={t('form.transport')}>
-            <Select
-              value={form.transport}
-              onChange={(v: McpTransport) => update('transport', v)}
-              options={transportOptions}
-            />
-          </Form.Item>
-
-          {remote ? (
-            <>
-              <Form.Item label={<span>{t('form.url')} <span style={{ color: '#f5222d' }}>*</span></span>}>
-                <Input
-                  value={form.url}
-                  onChange={(e) => update('url', e.target.value)}
-                  placeholder={t('form.urlPlaceholder')}
-                  maxLength={2048}
-                />
-              </Form.Item>
-              <Form.Item label={t('form.authType')}>
-                <Radio.Group
-                  value={form.authType}
-                  onChange={(e) => update('authType', e.target.value)}
-                  buttonStyle="solid"
-                >
-                  <Radio.Button value="none">{t('form.authTypeNone')}</Radio.Button>
-                  <Radio.Button value="bearer">
-                    {t('form.authTypeBearer')}
-                  </Radio.Button>
-                </Radio.Group>
-              </Form.Item>
-            </>
-          ) : (
-            <>
-              <Form.Item
-                label={<span>{t('form.command')} <span style={{ color: '#f5222d' }}>*</span></span>}
-              >
-                <Input
-                  value={form.command}
-                  onChange={(e) => update('command', e.target.value)}
-                  placeholder={t('form.commandPlaceholder')}
-                />
-              </Form.Item>
-              <Form.Item label={t('form.args')} extra={t('form.argsHint')}>
-                <Input
-                  value={form.argsRaw}
-                  onChange={(e) => update('argsRaw', e.target.value)}
-                  placeholder={t('form.argsPlaceholder')}
-                />
-              </Form.Item>
-            </>
-          )}
-
-          {/* Advanced (env / headers) collapse — matches web's disclosure. */}
-          <div style={{ marginTop: 8 }}>
-            <Button
-              type="link"
-              size="small"
-              style={{ paddingLeft: 0 }}
-              onClick={() => setAdvancedOpen((v) => !v)}
-            >
-              {advancedOpen ? '▾' : '▸'}{' '}
-              {t('form.advancedToggle', { defaultValue: '显示高级设置' })}
-            </Button>
-          </div>
-
-          {advancedOpen && remote && (
-            <Form.Item
-              label={t('form.headers')}
-              extra={t('form.headersHint')}
-              style={{ marginBottom: 0 }}
-            >
-              <TextArea
-                rows={3}
-                value={form.headersRaw}
-                onChange={(e) => update('headersRaw', e.target.value)}
-                placeholder={t('form.headersPlaceholder')}
-              />
-            </Form.Item>
-          )}
-
-          {advancedOpen && !remote && (
-            <Form.Item
-              label={t('form.env')}
-              extra={t('form.envHint')}
-              style={{ marginBottom: 0 }}
-            >
-              <TextArea
-                rows={3}
-                value={form.envRaw}
-                onChange={(e) => update('envRaw', e.target.value)}
-                placeholder={t('form.envPlaceholder')}
-              />
-            </Form.Item>
-          )}
-
-          {/* Tools list — inline `+ 新增一条` matches web behavior. */}
-          <div style={{ marginTop: 16 }}>
-            <DynamicListHeader
-              title={t('form.sectionTools')}
-              desc={t('form.sectionToolsDesc')}
-              onAdd={() =>
-                update('tools', [...form.tools, { name: '', description: '' }])
-              }
-            />
-            {form.tools.length === 0 ? (
-              <div className="mcp-form-empty">
-                {t('form.toolsEmpty', {
-                  defaultValue: '尚未添加工具，点击「新增一条」添加',
+          <div className="mcp-form-section">
+            <div className="mcp-form-section__head">
+              <div className="mcp-form-section__title">
+                {t('form.sectionConnect', { defaultValue: '接入方式' })}
+              </div>
+              <div className="mcp-form-section__desc">
+                {t('form.sectionConnectDesc', {
+                  defaultValue: 'MCP 服务器如何被启动和调用',
                 })}
               </div>
-            ) : (
-              form.tools.map((tool, idx) => (
-                <div className="mcp-form-tool" key={idx}>
-                  <div className="mcp-form-tool__grow">
+            </div>
+            <div className="mcp-form-section__body">
+              <Form.Item label={t('form.transport')}>
+                <Select
+                  value={form.transport}
+                  onChange={(v: McpTransport) => update('transport', v)}
+                  options={transportOptions}
+                />
+              </Form.Item>
+
+              {remote ? (
+                <>
+                  <Form.Item label={<span>{t('form.url')} <span style={{ color: '#f5222d' }}>*</span></span>}>
                     <Input
-                      value={tool.name}
-                      placeholder={t('form.toolNamePlaceholder')}
-                      onChange={(e) => {
-                        const next = [...form.tools]
-                        next[idx] = { ...next[idx], name: e.target.value }
-                        update('tools', next)
-                      }}
-                      style={{ marginBottom: 8 }}
+                      value={form.url}
+                      onChange={(e) => update('url', e.target.value)}
+                      placeholder={t('form.urlPlaceholder')}
+                      maxLength={2048}
                     />
+                  </Form.Item>
+                  <Form.Item label={t('form.authType')} style={{ marginBottom: 0 }}>
+                    <Radio.Group
+                      value={form.authType}
+                      onChange={(e) => update('authType', e.target.value)}
+                      buttonStyle="solid"
+                      className="mcp-form-segmented"
+                    >
+                      <Radio.Button value="none">{t('form.authTypeNone')}</Radio.Button>
+                      <Radio.Button value="bearer">
+                        {t('form.authTypeBearer')}
+                      </Radio.Button>
+                    </Radio.Group>
+                  </Form.Item>
+                </>
+              ) : (
+                <>
+                  <Form.Item
+                    label={<span>{t('form.command')} <span style={{ color: '#f5222d' }}>*</span></span>}
+                  >
                     <Input
-                      value={tool.description}
-                      placeholder={t('form.toolDescPlaceholder')}
-                      onChange={(e) => {
-                        const next = [...form.tools]
-                        next[idx] = { ...next[idx], description: e.target.value }
-                        update('tools', next)
-                      }}
+                      value={form.command}
+                      onChange={(e) => update('command', e.target.value)}
+                      placeholder={t('form.commandPlaceholder')}
                     />
-                  </div>
-                  <div className="mcp-form-tool__aside">
-                    <span className="mcp-form-tool__idx">#{idx + 1}</span>
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() =>
-                        update(
-                          'tools',
-                          form.tools.filter((_, i) => i !== idx),
-                        )
-                      }
+                  </Form.Item>
+                  <Form.Item label={t('form.args')} extra={t('form.argsHint')} style={{ marginBottom: 0 }}>
+                    <Input
+                      value={form.argsRaw}
+                      onChange={(e) => update('argsRaw', e.target.value)}
+                      placeholder={t('form.argsPlaceholder')}
                     />
-                  </div>
+                  </Form.Item>
+                </>
+              )}
+
+              {/* Advanced (env / headers) collapse — matches web's disclosure. */}
+              <div style={{ marginTop: 12 }}>
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ paddingLeft: 0 }}
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                >
+                  {advancedOpen ? '▾' : '▸'}{' '}
+                  {advancedOpen
+                    ? t('form.advancedHide', { defaultValue: '收起高级设置' })
+                    : t('form.advancedShow', { defaultValue: '显示高级设置' })}
+                </Button>
+              </div>
+
+              {advancedOpen && remote && (
+                <Form.Item
+                  label={t('form.headers')}
+                  extra={t('form.headersHint')}
+                  style={{ marginBottom: 0, marginTop: 8 }}
+                >
+                  <TextArea
+                    rows={3}
+                    value={form.headersRaw}
+                    onChange={(e) => update('headersRaw', e.target.value)}
+                    placeholder={t('form.headersPlaceholder')}
+                  />
+                </Form.Item>
+              )}
+
+              {advancedOpen && !remote && (
+                <Form.Item
+                  label={t('form.env')}
+                  extra={t('form.envHint')}
+                  style={{ marginBottom: 0, marginTop: 8 }}
+                >
+                  <TextArea
+                    rows={3}
+                    value={form.envRaw}
+                    onChange={(e) => update('envRaw', e.target.value)}
+                    placeholder={t('form.envPlaceholder')}
+                  />
+                </Form.Item>
+              )}
+            </div>
+          </div>
+
+          {/* Tools list section — separate card, with probe button next to +新增 */}
+          <div className="mcp-form-section">
+            <div className="mcp-form-list-head">
+              <div>
+                <div className="mcp-form-section__title">
+                  {t('form.sectionTools', { defaultValue: '工具清单' })}
                 </div>
-              ))
-            )}
+                <div className="mcp-form-section__desc">
+                  {t('form.sectionToolsDesc', {
+                    defaultValue: '接入后智能体可用的工具集',
+                  })}
+                </div>
+              </div>
+              <div className="mcp-form-list-head__actions">
+                <Button
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={() =>
+                    update('tools', [
+                      ...form.tools,
+                      { name: '', description: '' },
+                    ])
+                  }
+                >
+                  {t('form.addOne', { defaultValue: '新增一条' })}
+                </Button>
+                {remote && (
+                  <Button
+                    size="small"
+                    type="primary"
+                    ghost
+                    icon={<ThunderboltOutlined />}
+                    loading={probing}
+                    onClick={handleProbe}
+                  >
+                    {t('form.probe', {
+                      defaultValue: '试连 / 获取工具列表',
+                    })}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="mcp-form-section__body">
+              {form.tools.length === 0 ? (
+                <div className="mcp-form-empty">
+                  {t('form.toolsEmpty', {
+                    defaultValue:
+                      remote
+                        ? '尚未添加工具，可点击「试连 / 获取工具列表」自动探测，或手动补充。'
+                        : '尚未添加工具，点击「新增一条」添加',
+                  })}
+                </div>
+              ) : (
+                form.tools.map((tool, idx) => (
+                  <div className="mcp-form-tool" key={idx}>
+                    <div className="mcp-form-tool__grow">
+                      <Input
+                        value={tool.name}
+                        placeholder={t('form.toolNamePlaceholder')}
+                        onChange={(e) => {
+                          const next = [...form.tools]
+                          next[idx] = { ...next[idx], name: e.target.value }
+                          update('tools', next)
+                        }}
+                        style={{ marginBottom: 8 }}
+                      />
+                      <Input
+                        value={tool.description}
+                        placeholder={t('form.toolDescPlaceholder')}
+                        onChange={(e) => {
+                          const next = [...form.tools]
+                          next[idx] = { ...next[idx], description: e.target.value }
+                          update('tools', next)
+                        }}
+                      />
+                    </div>
+                    <div className="mcp-form-tool__aside">
+                      <span className="mcp-form-tool__idx">#{idx + 1}</span>
+                      <Button
+                        type="text"
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() =>
+                          update(
+                            'tools',
+                            form.tools.filter((_, i) => i !== idx),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -710,39 +849,46 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
       {/* Step 3 — Docs (system MCPs skip visibility) */}
       {step === 2 && (
         <div className="mcp-form-step">
-          <SimpleTextList
-            title={t('detail.section.examples')}
-            desc={t('form.exampleDesc', {
-              defaultValue: '示范用户可能怎么使用（选填）',
-            })}
-            values={form.usageExamples}
-            onChange={(next) => update('usageExamples', next)}
-            placeholder={t('form.examplePlaceholder')}
-            addLabel={t('form.exampleAdd')}
-          />
-          <FaqList
-            values={form.faqs}
-            onChange={(next) => update('faqs', next)}
-            addLabel={t('form.faqAdd')}
-            desc={t('form.faqDesc', {
-              defaultValue: '预置的问题与解答（选填）',
-            })}
-            title={t('detail.section.faqs')}
-            qPlaceholder={t('form.faqQuestionPlaceholder')}
-            aPlaceholder={t('form.faqAnswerPlaceholder')}
-          />
-          <SimpleTextList
-            title={t('detail.section.notes')}
-            desc={t('form.noteDesc', {
-              defaultValue: '使用前的提醒（选填）',
-            })}
-            values={form.notes}
-            onChange={(next) => update('notes', next)}
-            placeholder={t('form.notePlaceholder')}
-            addLabel={t('form.noteAdd')}
-          />
+          <div className="mcp-form-section">
+            <SimpleTextList
+              title={t('detail.section.examples')}
+              desc={t('form.exampleDesc', {
+                defaultValue: '示范用户可能怎么使用（选填）',
+              })}
+              values={form.usageExamples}
+              onChange={(next) => update('usageExamples', next)}
+              placeholder={t('form.examplePlaceholder')}
+              addLabel={t('form.exampleAdd', { defaultValue: '新增一条' })}
+            />
+          </div>
+          <div className="mcp-form-section">
+            <FaqList
+              values={form.faqs}
+              onChange={(next) => update('faqs', next)}
+              addLabel={t('form.faqAdd', { defaultValue: '新增一条' })}
+              desc={t('form.faqDesc', {
+                defaultValue: '预置的问题与解答（选填）',
+              })}
+              title={t('detail.section.faqs')}
+              qPlaceholder={t('form.faqQuestionPlaceholder')}
+              aPlaceholder={t('form.faqAnswerPlaceholder')}
+            />
+          </div>
+          <div className="mcp-form-section">
+            <SimpleTextList
+              title={t('detail.section.notes')}
+              desc={t('form.noteDesc', {
+                defaultValue: '使用前的提醒（选填）',
+              })}
+              values={form.notes}
+              onChange={(next) => update('notes', next)}
+              placeholder={t('form.notePlaceholder')}
+              addLabel={t('form.noteAdd', { defaultValue: '新增一条' })}
+            />
+          </div>
         </div>
       )}
+      </Form>
     </Modal>
   )
 }

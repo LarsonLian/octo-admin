@@ -214,3 +214,33 @@ export async function updateSystemMcp(
 export async function deleteSystemMcp(id: string): Promise<void> {
   await mcpApi.delete(`/admin/mcps/${encodeURIComponent(id)}`)
 }
+
+// ─── Probe ────────────────────────────────────────────────────────────────
+
+/** POST /admin/api/v1/mcps/probe body. Mirrors the public probe shape (doc
+ *  §4.7). Only remote transports (streamable-http / sse) are probable from
+ *  the server; stdio would need a desktop client to spawn the process. */
+export interface McpProbeRequest {
+  transport: McpTransport
+  url?: string
+  authType?: McpAuthType
+  headers?: Record<string, string>
+}
+
+/** POST /admin/api/v1/mcps/probe response envelope. Wire never omits fields
+ *  even on failure — server sets tools=[] and ok=false + error.code. */
+export interface McpProbeResponse {
+  ok: boolean
+  tools: McpTool[]
+  error?: { code?: string; message?: string }
+}
+
+/** Run an MCP handshake against the server described by `req` and return
+ *  its tool list. The response is HTTP 200 even on probe failure — the
+ *  `ok` flag tells the caller whether tools[] is meaningful. */
+export async function probeSystemMcp(
+  req: McpProbeRequest,
+): Promise<McpProbeResponse> {
+  const resp = await mcpApi.post<McpProbeResponse>('/admin/mcps/probe', req)
+  return resp.data
+}
