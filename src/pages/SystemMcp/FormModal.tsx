@@ -44,10 +44,13 @@ import {
   type McpAuthType,
   type McpDetail,
   type McpFaq,
-  type McpProbeRequest,
   type McpTool,
   type McpTransport,
 } from '../../api/mcp'
+import {
+  buildProbeRequest,
+  resolveProbeErrorMessage,
+} from './probeHelpers'
 
 const { TextArea } = Input
 
@@ -343,45 +346,31 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
   // fills tools[] from the returned tool list. Only remote transports are
   // probable — stdio would need a desktop client to spawn the process
   // (mcp-v1.md §4.7). Backend returns HTTP 200 even on probe failure with
-  // ok=false + error.code, so we branch on `resp.ok`.
+  // ok=false + error.code, so we branch on `resp.ok`. Payload assembly and
+  // error-code → i18n resolution live in probeHelpers so both branches are
+  // unit-testable without the wizard.
   const handleProbe = async () => {
     if (!remote) return
     if (!form.url.trim()) {
       message.warning(t('form.urlRequired'))
       return
     }
-    const req: McpProbeRequest = {
+    const req = buildProbeRequest({
       transport: form.transport,
-      url: form.url.trim(),
+      url: form.url,
       authType: form.authType,
-      headers: form.headersRaw
-        ? (() => {
-            const kv = parseKV(form.headersRaw, ':')
-            return Object.keys(kv).length ? kv : undefined
-          })()
-        : undefined,
-    }
+      headersRaw: form.headersRaw,
+    })
+    if (!req) return
     setProbing(true)
     try {
       const resp = await probeSystemMcp(req)
       if (!resp.ok) {
-        const code = resp.error?.code
-        message.error(
-          code
-            ? t(`form.probeError.${code}`, {
-                defaultValue: resp.error?.message || t('form.probeFailed'),
-              })
-            : resp.error?.message || t('form.probeFailed'),
-        )
+        message.error(resolveProbeErrorMessage(resp, t))
         return
       }
       update('tools', resp.tools)
-      message.success(
-        t('form.probeSuccess', {
-          count: resp.tools.length,
-          defaultValue: `已获取 ${resp.tools.length} 个工具`,
-        }),
-      )
+      message.success(t('form.probeSuccess', { count: resp.tools.length }))
     } catch (e) {
       message.error(
         e instanceof ApiError ? e.message : t('form.probeFailed'),
@@ -514,12 +503,10 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
           <div className="mcp-form-section">
             <div className="mcp-form-section__head">
               <div className="mcp-form-section__title">
-                {t('form.sectionBasics', { defaultValue: '基本信息' })}
+                {t('form.sectionBasic')}
               </div>
               <div className="mcp-form-section__desc">
-                {t('form.sectionBasicsDesc', {
-                  defaultValue: '展示在市场卡片和详情页顶部',
-                })}
+                {t('form.sectionBasicDesc')}
               </div>
             </div>
             <div className="mcp-form-section__body">
@@ -558,18 +545,13 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
               </div>
 
               <Form.Item
-                label={t('form.slug', { defaultValue: '服务标识 (slug)' })}
-                extra={t('form.slugHint', {
-                  defaultValue:
-                    '生成 mcpServers JSON 时用作 key，仅限英文小写、数字、连字符；留空自动根据名称生成',
-                })}
+                label={t('form.slug')}
+                extra={t('form.slugHint')}
               >
                 <Input
                   value={form.slug}
                   onChange={(e) => onSlugChange(e.target.value)}
-                  placeholder={t('form.slugPlaceholder', {
-                    defaultValue: '例如 github-mcp',
-                  })}
+                  placeholder={t('form.slugPlaceholder')}
                   maxLength={64}
                 />
               </Form.Item>
@@ -584,7 +566,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                 </Form.Item>
                 <Form.Item
                   label={t('form.tags')}
-                  extra={t('form.tagsPillHint', { defaultValue: '输入后回车添加' })}
+                  extra={t('form.tagsPillHint')}
                 >
                   <div>
                     <Input
@@ -595,9 +577,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                         addTag()
                       }}
                       onBlur={addTag}
-                      placeholder={t('form.tagsPillPlaceholder', {
-                        defaultValue: '输入后按回车添加',
-                      })}
+                      placeholder={t('form.tagsPillPlaceholder')}
                     />
                     {form.tags.length > 0 && (
                       <div style={{ marginTop: 8 }}>
@@ -638,12 +618,10 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
           <div className="mcp-form-section">
             <div className="mcp-form-section__head">
               <div className="mcp-form-section__title">
-                {t('form.sectionConnect', { defaultValue: '接入方式' })}
+                {t('form.sectionConnect')}
               </div>
               <div className="mcp-form-section__desc">
-                {t('form.sectionConnectDesc', {
-                  defaultValue: 'MCP 服务器如何被启动和调用',
-                })}
+                {t('form.sectionConnectDesc')}
               </div>
             </div>
             <div className="mcp-form-section__body">
@@ -710,8 +688,8 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                 >
                   {advancedOpen ? '▾' : '▸'}{' '}
                   {advancedOpen
-                    ? t('form.advancedHide', { defaultValue: '收起高级设置' })
-                    : t('form.advancedShow', { defaultValue: '显示高级设置' })}
+                    ? t('form.advancedHide')
+                    : t('form.advancedShow')}
                 </Button>
               </div>
 
@@ -752,12 +730,10 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
             <div className="mcp-form-list-head">
               <div>
                 <div className="mcp-form-section__title">
-                  {t('form.sectionTools', { defaultValue: '工具清单' })}
+                  {t('form.sectionTools')}
                 </div>
                 <div className="mcp-form-section__desc">
-                  {t('form.sectionToolsDesc', {
-                    defaultValue: '接入后智能体可用的工具集',
-                  })}
+                  {t('form.sectionToolsDesc')}
                 </div>
               </div>
               <div className="mcp-form-list-head__actions">
@@ -771,7 +747,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                     ])
                   }
                 >
-                  {t('form.addOne', { defaultValue: '新增一条' })}
+                  {t('form.addOne')}
                 </Button>
                 {remote && (
                   <Button
@@ -782,9 +758,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                     loading={probing}
                     onClick={handleProbe}
                   >
-                    {t('form.probe', {
-                      defaultValue: '试连 / 获取工具列表',
-                    })}
+                    {t('form.probe')}
                   </Button>
                 )}
               </div>
@@ -792,12 +766,9 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
             <div className="mcp-form-section__body">
               {form.tools.length === 0 ? (
                 <div className="mcp-form-empty">
-                  {t('form.toolsEmpty', {
-                    defaultValue:
-                      remote
-                        ? '尚未添加工具，可点击「试连 / 获取工具列表」自动探测，或手动补充。'
-                        : '尚未添加工具，点击「新增一条」添加',
-                  })}
+                  {remote
+                    ? t('form.toolsProbeHint')
+                    : t('form.toolsEmpty')}
                 </div>
               ) : (
                 form.tools.map((tool, idx) => (
@@ -852,23 +823,19 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
           <div className="mcp-form-section">
             <SimpleTextList
               title={t('detail.section.examples')}
-              desc={t('form.exampleDesc', {
-                defaultValue: '示范用户可能怎么使用（选填）',
-              })}
+              desc={t('form.exampleDesc')}
               values={form.usageExamples}
               onChange={(next) => update('usageExamples', next)}
               placeholder={t('form.examplePlaceholder')}
-              addLabel={t('form.exampleAdd', { defaultValue: '新增一条' })}
+              addLabel={t('form.exampleAdd')}
             />
           </div>
           <div className="mcp-form-section">
             <FaqList
               values={form.faqs}
               onChange={(next) => update('faqs', next)}
-              addLabel={t('form.faqAdd', { defaultValue: '新增一条' })}
-              desc={t('form.faqDesc', {
-                defaultValue: '预置的问题与解答（选填）',
-              })}
+              addLabel={t('form.faqAdd')}
+              desc={t('form.faqDesc')}
               title={t('detail.section.faqs')}
               qPlaceholder={t('form.faqQuestionPlaceholder')}
               aPlaceholder={t('form.faqAnswerPlaceholder')}
@@ -877,13 +844,11 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
           <div className="mcp-form-section">
             <SimpleTextList
               title={t('detail.section.notes')}
-              desc={t('form.noteDesc', {
-                defaultValue: '使用前的提醒（选填）',
-              })}
+              desc={t('form.noteDesc')}
               values={form.notes}
               onChange={(next) => update('notes', next)}
               placeholder={t('form.notePlaceholder')}
-              addLabel={t('form.noteAdd', { defaultValue: '新增一条' })}
+              addLabel={t('form.noteAdd')}
             />
           </div>
         </div>

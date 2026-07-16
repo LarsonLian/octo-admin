@@ -94,6 +94,17 @@
     "sectionTools": "Tools",
     "sectionToolsDesc": "Tools this MCP exposes for agents",
     "toolsEmpty": "No tools yet. Click \"Add\" to add one.",
+    "toolsProbeHint": "No tools yet. Click \"Test / fetch tools\" to probe automatically, or add them manually.",
+    "addOne": "Add",
+    "probe": "Test / fetch tools",
+    "probeSuccess": "Fetched {{count}} tools",
+    "probeFailed": "Probe failed",
+    "probeError": {
+      "command_not_found": "Launch command not found. Please check the command.",
+      "timeout": "Probe timed out. Please try again later.",
+      "init_failed": "Connection config is incomplete; cannot fetch the tool list.",
+      "no_tools_capability": "This MCP does not expose a tool list."
+    },
     "exampleDesc": "Show users how to use this MCP (optional)",
     "faqDesc": "Preset questions and answers (optional)",
     "noteDesc": "Reminders before use (optional)",

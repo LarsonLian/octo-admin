@@ -94,6 +94,17 @@
     "sectionTools": "工具清单",
     "sectionToolsDesc": "接入后智能体可用的工具集",
     "toolsEmpty": "尚未添加工具，点击「新增一条」添加",
+    "toolsProbeHint": "尚未添加工具，可点击「试连 / 获取工具列表」自动探测，或手动补充。",
+    "addOne": "新增一条",
+    "probe": "试连 / 获取工具列表",
+    "probeSuccess": "已获取 {{count}} 个工具",
+    "probeFailed": "探测失败",
+    "probeError": {
+      "command_not_found": "找不到启动命令，请检查命令是否正确。",
+      "timeout": "探测超时，请稍后重试。",
+      "init_failed": "连接配置不完整，无法探测工具列表。",
+      "no_tools_capability": "该 MCP 未提供工具列表能力。"
+    },
     "exampleDesc": "示范用户可能怎么使用（选填）",
     "faqDesc": "预置的问题与解答（选填）",
     "noteDesc": "使用前的提醒（选填）",
