@@ -606,17 +606,6 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                       maxLength={64}
                     />
                   </Form.Item>
-                  <Form.Item
-                    label={t('form.iconOrEmoji')}
-                    extra={t('form.iconHint')}
-                    style={{ marginBottom: 0 }}
-                  >
-                    <Input
-                      value={form.icon}
-                      onChange={(e) => update('icon', e.target.value)}
-                      placeholder={t('form.iconPlaceholder')}
-                    />
-                  </Form.Item>
                 </div>
               </div>
 
