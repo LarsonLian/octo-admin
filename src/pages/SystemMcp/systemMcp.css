@@ -311,6 +311,27 @@
   object-fit: cover;
 }
 
+/* Interactive variant — the tile becomes a native <button> the user clicks
+   to open the file picker. Border thickens on hover, dashed while empty. */
+.admin-shell button.mcp-form-icon-preview--interactive {
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.admin-shell button.mcp-form-icon-preview--interactive:hover:not(:disabled) {
+  border-color: var(--a-border-strong, var(--a-border-default));
+  background: var(--a-bg-muted, var(--a-bg-elevated));
+}
+.admin-shell button.mcp-form-icon-preview--interactive:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.admin-shell .mcp-form-icon-preview__spinner {
+  font-size: 14px;
+  color: var(--a-text-tertiary);
+  letter-spacing: 2px;
+}
+
 /* Dynamic-list rows */
 .admin-shell .mcp-form-list {
   display: flex;

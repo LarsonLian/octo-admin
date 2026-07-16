@@ -246,3 +246,49 @@ export async function probeSystemMcp(
   const resp = await mcpApi.post<McpProbeResponse>('/admin/mcps/probe', req)
   return resp.data
 }
+
+// ─── Icon upload (presigned URL flow) ────────────────────────────────────
+
+/** POST /admin/api/v1/mcps/upload/icon response. Mirrors
+ *  service.parse.IconUploadResult in the marketplace. `download_url` is the
+ *  persistent public URL that callers store on the MCP record after
+ *  successfully PUTting the bytes to `presigned_url`. */
+export interface McpIconInitResponse {
+  object_key: string
+  presigned_url: string
+  expires_in: number
+  method: string
+  headers: Record<string, string>
+  download_url: string
+}
+
+/** Two-step icon upload: hit marketplace for a presigned PUT URL, then
+ *  PUT the file bytes directly to that URL, then hand back the persistent
+ *  download URL to store on the MCP record. Marketplace-side handler is
+ *  `POST /api/v1/admin/mcps/upload/icon` (added in
+ *  handler/mcp_icon.go); admin auth is via the same X-Admin-Token header
+ *  that mcpApi already injects. */
+export async function uploadMcpIcon(file: File): Promise<string> {
+  const initResp = await mcpApi.post<McpIconInitResponse>(
+    '/admin/mcps/upload/icon',
+    {
+      file_name: file.name,
+      file_size: file.size,
+      content_type: file.type,
+    },
+  )
+  const { presigned_url, download_url, headers } = initResp.data
+  // Direct PUT to the presigned URL. Use fetch instead of mcpApi (axios)
+  // because the presigned URL points at the local proxy or OSS host — not
+  // the admin base URL, and we don't want the X-Admin-Token or
+  // Accept-Language interceptors leaking into a third-party call.
+  const putResp = await fetch(presigned_url, {
+    method: 'PUT',
+    headers: headers ?? {},
+    body: file,
+  })
+  if (!putResp.ok) {
+    throw new Error(`Upload failed (${putResp.status})`)
+  }
+  return download_url
+}

@@ -40,6 +40,12 @@ export interface ProbeFormFields {
   /** Raw `Header-Name: value\n...` textarea contents. Parsed here so the
    *  helper owns the split-and-trim rules (same as FormModal's parseKV). */
   headersRaw: string
+  /** Optional ephemeral bearer token supplied via the "试连密钥（不保存）"
+   *  field. When authType=bearer AND this is non-empty, it overrides any
+   *  Authorization value coming from `headersRaw` and is written as
+   *  `Authorization: Bearer <token>` on the probe wire. Never persisted —
+   *  the caller MUST NOT include this in the create/update payload. */
+  probeBearer?: string
 }
 
 /** Parse a `key: value\n...` block into a plain object. Duplicated from
@@ -80,12 +86,17 @@ export function buildProbeRequest(
   if (!remote) return null
   const trimmedURL = fields.url.trim()
   if (!trimmedURL) return null
-  const headers = fields.headersRaw
-    ? (() => {
-        const kv = parseHeaderBlock(fields.headersRaw)
-        return Object.keys(kv).length ? kv : undefined
-      })()
-    : undefined
+  const parsed = fields.headersRaw
+    ? parseHeaderBlock(fields.headersRaw)
+    : {}
+  const ephemeral = (fields.probeBearer ?? '').trim()
+  if (fields.authType === 'bearer' && ephemeral) {
+    // The ephemeral bearer wins over any Authorization coming from the
+    // persisted headers map (typically the SECRET_PLACEHOLDER sentinel) —
+    // the user's just-typed token is the more explicit signal.
+    parsed.Authorization = `Bearer ${ephemeral}`
+  }
+  const headers = Object.keys(parsed).length ? parsed : undefined
   return {
     transport: fields.transport,
     url: trimmedURL,

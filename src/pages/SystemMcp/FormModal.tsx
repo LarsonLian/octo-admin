@@ -40,6 +40,7 @@ import {
   createSystemMcp,
   probeSystemMcp,
   updateSystemMcp,
+  uploadMcpIcon,
   type CreateMcpParams,
   type McpAuthType,
   type McpDetail,
@@ -203,6 +204,13 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
   const [tagInput, setTagInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [probing, setProbing] = useState(false)
+  const [iconUploading, setIconUploading] = useState(false)
+  // Ephemeral bearer token consumed only by the probe call; NEVER included
+  // in the create/update payload. Lets the operator paste a real token to
+  // fetch the tool list while the saved config keeps the sentinel
+  // placeholder that mcp-v1.md §5.1 requires. Not seeded from `editing` —
+  // real values never round-trip to the client.
+  const [probeBearer, setProbeBearer] = useState('')
 
   // Reset-on-open matches web's behavior (McpCreateModal:364-389). Editing
   // → hydrate from detail; create → start blank; either way step goes back
@@ -222,6 +230,8 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
       setSlugTouched(false)
       setAdvancedOpen(false)
     }
+    // Probe bearer is per-session and never re-used across opens.
+    setProbeBearer('')
     setStep(0)
     setTagInput('')
   }, [open, editing])
@@ -360,6 +370,7 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
       url: form.url,
       authType: form.authType,
       headersRaw: form.headersRaw,
+      probeBearer,
     })
     if (!req) return
     setProbing(true)
@@ -436,6 +447,54 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
     !!form.icon &&
     (form.icon.startsWith('http') || form.icon.startsWith('data:'))
 
+  const iconInputRef = React.useRef<HTMLInputElement | null>(null)
+
+  // ── Icon upload ────────────────────────────────────────────────────────
+  // Click on the 72×72 preview tile opens the file picker. Selected file is
+  // validated (type + size), then POSTed to marketplace via the two-step
+  // presigned-URL flow (see api/mcp.ts#uploadMcpIcon). On success we write
+  // the persistent download URL back into form.icon — same field the emoji /
+  // manual URL input feeds, so downstream code doesn't care about the source.
+  const MAX_ICON_BYTES = 2 * 1024 * 1024
+  const ALLOWED_ICON_TYPES = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
+  ])
+
+  const handleIconFile = async (file: File) => {
+    if (!ALLOWED_ICON_TYPES.has(file.type)) {
+      message.error(t('form.iconTypeError'))
+      return
+    }
+    if (file.size > MAX_ICON_BYTES) {
+      message.error(t('form.iconSizeError'))
+      return
+    }
+    setIconUploading(true)
+    try {
+      const url = await uploadMcpIcon(file)
+      update('icon', url)
+    } catch (e) {
+      message.error(
+        e instanceof ApiError
+          ? e.message
+          : t('form.iconUploadFailed', { defaultValue: '图标上传失败' }),
+      )
+    } finally {
+      setIconUploading(false)
+    }
+  }
+
+  const handleIconPickerChange: React.ChangeEventHandler<HTMLInputElement> =
+    (e) => {
+      const file = e.target.files?.[0]
+      // Reset the input so selecting the SAME file again still fires change.
+      e.target.value = ''
+      if (file) void handleIconFile(file)
+    }
+
   // ── Footer buttons ─────────────────────────────────────────────────────
   // Layout matches web: left = ← 上一步 (hidden on step 0), right = 下一步 →
   // or 提交. The modal's × close button covers "cancel", so we don't repeat
@@ -511,13 +570,30 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
             </div>
             <div className="mcp-form-section__body">
               <div className="mcp-form-row mcp-form-row--icon">
-                <div className="mcp-form-icon-preview" aria-hidden>
-                  {iconIsImage ? (
+                <button
+                  type="button"
+                  className="mcp-form-icon-preview mcp-form-icon-preview--interactive"
+                  onClick={() => iconInputRef.current?.click()}
+                  aria-label={t('form.iconUpload')}
+                  disabled={iconUploading}
+                >
+                  {iconUploading ? (
+                    <span className="mcp-form-icon-preview__spinner" aria-hidden>
+                      ...
+                    </span>
+                  ) : iconIsImage ? (
                     <img src={form.icon} alt="" />
                   ) : (
                     <span>{form.icon || '🧩'}</span>
                   )}
-                </div>
+                </button>
+                <input
+                  ref={iconInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleIconPickerChange}
+                  style={{ display: 'none' }}
+                />
                 <div className="mcp-form-row__fields">
                   <Form.Item
                     label={<span>{t('form.name')} <span style={{ color: '#f5222d' }}>*</span></span>}
@@ -656,6 +732,20 @@ export default function McpFormModal({ open, editing, onClose, onSaved }: Props)
                       </Radio.Button>
                     </Radio.Group>
                   </Form.Item>
+                  {form.authType === 'bearer' && (
+                    <Form.Item
+                      label={t('form.probeBearerLabel')}
+                      extra={t('form.probeBearerHint')}
+                      style={{ marginBottom: 0, marginTop: 12 }}
+                    >
+                      <Input.Password
+                        value={probeBearer}
+                        onChange={(e) => setProbeBearer(e.target.value)}
+                        placeholder={t('form.probeBearerPlaceholder')}
+                        autoComplete="off"
+                      />
+                    </Form.Item>
+                  )}
                 </>
               ) : (
                 <>

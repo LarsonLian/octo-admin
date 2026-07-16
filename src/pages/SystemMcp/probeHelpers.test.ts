@@ -117,6 +117,46 @@ describe('buildProbeRequest', () => {
     expect(req).not.toBeNull()
     expect(req?.headers).toBeUndefined()
   })
+
+  it('injects ephemeral probeBearer as Authorization when authType=bearer', () => {
+    // The "试连密钥（不保存）" input feeds an ephemeral token used only for
+    // this probe call. It overrides whatever Authorization is in headersRaw
+    // — typically the SECRET_PLACEHOLDER sentinel — because the operator's
+    // just-typed token is the more explicit signal. Never persisted.
+    const req = buildProbeRequest({
+      transport: 'streamable-http',
+      url: 'https://mcp.example.com/x',
+      authType: 'bearer',
+      headersRaw: 'Authorization: __OCTO_SECRET_PLACEHOLDER__\nX-Custom: v',
+      probeBearer: 'real-token',
+    })
+    expect(req?.headers).toEqual({
+      Authorization: 'Bearer real-token',
+      'X-Custom': 'v',
+    })
+  })
+
+  it('ignores probeBearer when authType is not bearer', () => {
+    const req = buildProbeRequest({
+      transport: 'streamable-http',
+      url: 'https://mcp.example.com/x',
+      authType: 'none',
+      headersRaw: '',
+      probeBearer: 'real-token',
+    })
+    expect(req?.headers).toBeUndefined()
+  })
+
+  it('ignores whitespace-only probeBearer', () => {
+    const req = buildProbeRequest({
+      transport: 'sse',
+      url: 'https://mcp.example.com/x',
+      authType: 'bearer',
+      headersRaw: '',
+      probeBearer: '   ',
+    })
+    expect(req?.headers).toBeUndefined()
+  })
 })
 
 describe('resolveProbeErrorMessage', () => {
