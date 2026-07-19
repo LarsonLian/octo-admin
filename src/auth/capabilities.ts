@@ -14,6 +14,8 @@ export const MANAGER_CAPABILITY_KEYS = [
   'space.read',
   'space.write',
   'space.destructive',
+  'mcp.read',
+  'mcp.write',
 ] as const
 
 export const MANAGER_NO_ACCESS_PATH = '/no-access'
@@ -53,5 +55,6 @@ export function firstManagerPath(capabilities: ManagerCapabilities | null | unde
   if (hasManagerCapability(capabilities, 'system_setting')) return '/system-setting'
   if (hasManagerCapability(capabilities, 'backup')) return '/backup'
   if (hasManagerCapability(capabilities, 'appversion.read')) return '/download'
+  if (hasManagerCapability(capabilities, 'mcp.read')) return '/system-skill'
   return MANAGER_NO_ACCESS_PATH
 }

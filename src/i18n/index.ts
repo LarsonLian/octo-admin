@@ -27,6 +27,8 @@ import backupEN from './locales/en-US/backup.json'
 import backupZH from './locales/zh-CN/backup.json'
 import downloadEN from './locales/en-US/download.json'
 import downloadZH from './locales/zh-CN/download.json'
+import systemSkillEN from './locales/en-US/systemSkill.json'
+import systemSkillZH from './locales/zh-CN/systemSkill.json'
 
 export const SUPPORTED_LANGUAGES = ['en-US', 'zh-CN'] as const
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
@@ -53,6 +55,7 @@ i18n
         systemSetting: systemSettingEN,
         backup: backupEN,
         download: downloadEN,
+        systemSkill: systemSkillEN,
       },
       'zh-CN': {
         common: commonZH,
@@ -68,6 +71,7 @@ i18n
         systemSetting: systemSettingZH,
         backup: backupZH,
         download: downloadZH,
+        systemSkill: systemSkillZH,
       },
     },
     fallbackLng: FALLBACK_LANGUAGE,
@@ -87,6 +91,7 @@ i18n
       'systemSetting',
       'backup',
       'download',
+      'systemSkill',
     ],
     interpolation: { escapeValue: false },
     detection: {

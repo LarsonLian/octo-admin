@@ -18,6 +18,7 @@ import {
   DesktopOutlined,
   RobotOutlined,
   SettingOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../store/auth'
 import { useFeatureStore } from '../store/feature'
@@ -117,6 +118,9 @@ const MainLayout: React.FC = () => {
     }
     if (appBotsAvailable === true) {
       list.push({ key: '/app-bots', icon: <RobotOutlined />, label: t('nav:appBots'), group: 'management' })
+    }
+    if (hasManagerCapability(managerCapabilities, 'mcp.read')) {
+      list.push({ key: '/system-skill', icon: <ThunderboltOutlined />, label: t('nav:systemSkill'), group: 'management' })
     }
     if (hasManagerCapability(managerCapabilities, 'system_setting')) {
       list.push({ key: '/system-setting', icon: <SettingOutlined />, label: t('nav:systemSetting'), group: 'system' })

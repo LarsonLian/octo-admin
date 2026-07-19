@@ -18,12 +18,17 @@ export default defineConfig(({ command, mode }) => {
       include: ['src/**/*.test.{ts,tsx}'],
     },
     server: {
-      port: 3000,
+      port: Number(env.VITE_PORT) || 3000,
       proxy: {
         '/api': {
           target: proxyTarget,
           changeOrigin: true,
           rewrite: (path: string) => path.replace(/^\/api/, ''),
+        },
+        '/market': {
+          target: env.VITE_MARKET_PROXY_TARGET || proxyTarget,
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/market/, ''),
         },
       },
     },

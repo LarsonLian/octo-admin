@@ -19,6 +19,7 @@ import Download from './pages/Download'
 import SystemSetting from './pages/SystemSetting'
 import Changelog from './pages/Changelog'
 import AppBots from './pages/AppBots'
+import SystemSkill from './pages/SystemSkill'
 import SpaceEntry from './pages/SpaceAdmin/SpaceEntry'
 import SpaceAdminLayout from './pages/SpaceAdmin/SpaceAdminLayout'
 import { MembersTab, InvitesTab, JoinAppliesTab, AppBotsTab } from './pages/SpaceAdmin/tabs'
@@ -224,6 +225,14 @@ function AdminRoutes() {
             <ManagerAppBotsGate>
               <AppBots />
             </ManagerAppBotsGate>
+          }
+        />
+        <Route
+          path="system-skill"
+          element={
+            <CapabilityRoute capability="mcp.read">
+              <SystemSkill />
+            </CapabilityRoute>
           }
         />
         <Route path="no-access" element={<NoAccess />} />
