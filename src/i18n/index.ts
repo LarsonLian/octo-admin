@@ -29,6 +29,8 @@ import downloadEN from './locales/en-US/download.json'
 import downloadZH from './locales/zh-CN/download.json'
 import systemMcpEN from './locales/en-US/systemMcp.json'
 import systemMcpZH from './locales/zh-CN/systemMcp.json'
+import skillMarketEN from './locales/en-US/skillMarket.json'
+import skillMarketZH from './locales/zh-CN/skillMarket.json'
 
 export const SUPPORTED_LANGUAGES = ['en-US', 'zh-CN'] as const
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
@@ -56,6 +58,7 @@ i18n
         backup: backupEN,
         download: downloadEN,
         systemMcp: systemMcpEN,
+        skillMarket: skillMarketEN,
       },
       'zh-CN': {
         common: commonZH,
@@ -72,6 +75,7 @@ i18n
         backup: backupZH,
         download: downloadZH,
         systemMcp: systemMcpZH,
+        skillMarket: skillMarketZH,
       },
     },
     fallbackLng: FALLBACK_LANGUAGE,
@@ -92,6 +96,7 @@ i18n
       'backup',
       'download',
       'systemMcp',
+      'skillMarket',
     ],
     interpolation: { escapeValue: false },
     detection: {
