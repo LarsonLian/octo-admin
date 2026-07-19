@@ -248,7 +248,7 @@ function AdminRoutes() {
         <Route
           path="system-skill"
           element={
-            <CapabilityRoute capability="mcp.read">
+            <CapabilityRoute capability="skill.read">
               <SystemSkill />
             </CapabilityRoute>
           }

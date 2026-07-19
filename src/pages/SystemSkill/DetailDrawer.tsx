@@ -105,24 +105,6 @@ export default function DetailDrawer({ skillId, open, onClose, onDeleted, onEdit
             <Descriptions.Item label={t('detail.field.updatedAt')}>{skill.updated_at}</Descriptions.Item>
           </Descriptions>
 
-          <div style={{ marginTop: 24 }}>
-            <Typography.Title level={5}>{t('detail.readme')}</Typography.Title>
-            <div
-              style={{
-                padding: '12px 16px',
-                background: 'var(--a-bg-tertiary, #f5f5f5)',
-                borderRadius: 8,
-                fontSize: 13,
-                lineHeight: 1.6,
-                whiteSpace: 'pre-wrap',
-                maxHeight: 400,
-                overflow: 'auto',
-              }}
-            >
-              {skill.readme_content || t('detail.noReadme')}
-            </div>
-          </div>
-
           <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
             <Button onClick={() => onEdit(skill)}>{t('action.edit')}</Button>
             <Popconfirm
