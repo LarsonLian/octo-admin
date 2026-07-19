@@ -105,9 +105,8 @@ export default function SkillTable({ onView, onUpload }: Props) {
     },
     {
       title: t('column.category'),
-      dataIndex: 'category_name',
       width: 120,
-      render: (name: string) => name || '—',
+      render: (_, record) => categories.find((c) => c.id === record.category_id)?.name || record.category_name || '—',
     },
     {
       title: t('column.version'),

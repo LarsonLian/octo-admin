@@ -112,6 +112,7 @@ export interface CreateSkillParams {
   category_id?: string
   tags?: string[]
   version?: string
+  changelog?: string
   visibility?: 'public' | 'space' | 'private'
   icon_url?: string
 }
@@ -122,6 +123,8 @@ export interface PatchSkillParams {
   description?: string
   category_id?: string
   tags?: string[]
+  version?: string
+  changelog?: string
   visibility?: 'public' | 'space' | 'private'
   icon_url?: string
 }
@@ -131,6 +134,9 @@ export type UpdateSkillParams = PatchSkillParams
 export interface UploadInitResponse {
   upload_id: string
   presigned_url: string
+  method?: string
+  headers?: Record<string, string>
+  expires_in?: number
 }
 
 export interface ParseTaskStatus {
@@ -142,6 +148,9 @@ export interface ParseTaskStatus {
   result_version?: string
   result_tags?: string[]
   result_readme?: string
+  result_file_name?: string
+  result_file_size?: number
+  result_file_sha256?: string
 }
 
 export interface SkillListParams {
@@ -330,6 +339,27 @@ export async function initAdminSkillUpload(fileName: string, fileSize: number): 
   return resp.data.data
 }
 
+export async function initReupload(
+  skillId: string,
+  fileName: string,
+  fileSize: number
+): Promise<UploadInitResponse> {
+  const resp = await skillApi.post<{ data: InitUploadResult }>(
+    `/admin/skills/${encodeURIComponent(skillId)}/reupload/init`,
+    {
+      file_name: fileName,
+      file_size: fileSize,
+    }
+  )
+  const result = resp.data.data
+  return {
+    upload_id: result.skill_upload_id,
+    presigned_url: result.presigned_url,
+    method: result.method,
+    headers: result.headers ?? {},
+  }
+}
+
 export async function triggerAdminParse(uploadId: string): Promise<string> {
   const resp = await skillApi.post<{ data: { skill_parse_task_id: string } }>(
     `/admin/skill_uploads/${encodeURIComponent(uploadId)}/parse`
@@ -463,16 +493,28 @@ export async function uploadInit(
   return {
     upload_id: result.skill_upload_id,
     presigned_url: result.presigned_url,
+    method: result.method,
+    headers: result.headers ?? {},
   }
 }
 
 export async function uploadToPresigned(
   presignedUrl: string,
-  file: File
+  file: File,
+  headers: Record<string, string> = {},
+  onProgress?: (progress: number) => void
 ): Promise<void> {
+  onProgress?.(30)
   await axios.put(presignedUrl, file, {
-    headers: { 'Content-Type': 'application/octet-stream' },
+    headers: Object.keys(headers).length
+      ? headers
+      : { 'Content-Type': 'application/octet-stream' },
+    onUploadProgress: (event) => {
+      if (!event.total) return
+      onProgress?.(30 + Math.round((event.loaded / event.total) * 30))
+    },
   })
+  onProgress?.(60)
 }
 
 export async function triggerParse(uploadId: string): Promise<{ task_id: string }> {
@@ -490,6 +532,9 @@ export async function getParseStatus(taskId: string): Promise<ParseTaskStatus> {
     result_version: task.result?.version,
     result_tags: task.result?.tags,
     result_readme: task.result?.readme_content,
+    result_file_name: task.result?.file_name,
+    result_file_size: task.result?.file_size,
+    result_file_sha256: task.result?.file_sha256,
   }
 }
 

@@ -42,19 +42,19 @@ export default function CategoryTab() {
 
   const openEdit = (item: CategoryItem) => {
     setEditItem(item)
-    form.setFieldsValue({ name: item.name, icon_key: item.icon_key })
+    form.setFieldsValue({ name: item.name })
     setModalOpen(true)
   }
 
   const handleSubmit = async () => {
-    const values = await form.validateFields()
+    const values = await form.validateFields() as { name: string }
     setSubmitting(true)
     try {
       if (editItem) {
         await updateCategory(editItem.id, values)
         message.success(t('category.success.updated'))
       } else {
-        await createCategory(values)
+        await createCategory({ ...values, icon_key: 'MoreHorizontal' })
         message.success(t('category.success.created'))
       }
       setModalOpen(false)
@@ -165,13 +165,6 @@ export default function CategoryTab() {
             rules={[{ required: true }]}
           >
             <Input placeholder={t('category.form.namePlaceholder')} />
-          </Form.Item>
-          <Form.Item
-            name="icon_key"
-            label={t('category.form.iconKey')}
-            rules={[{ required: true }]}
-          >
-            <Input placeholder={t('category.form.iconKeyPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>
