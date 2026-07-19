@@ -95,7 +95,8 @@ export default function CategoryTab() {
       load()
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        message.error(t('category.deleteInUse', { count: '?' }))
+        const count = (err.details?.skill_count as number) ?? 0
+        message.error(t('category.deleteInUse', { count }))
       } else {
         message.error(t('category.error.deleteFailed'))
       }
