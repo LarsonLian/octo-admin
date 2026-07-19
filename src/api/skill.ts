@@ -42,7 +42,7 @@ skillApi.interceptors.response.use(
     const wire = error.response?.data?.error
     const message = wire?.message || wire?.code || error.message
     return Promise.reject(
-      new ApiError(message, error.response?.status, wire?.code)
+      new ApiError(message, error.response?.status, wire?.code, wire?.details)
     )
   }
 )
