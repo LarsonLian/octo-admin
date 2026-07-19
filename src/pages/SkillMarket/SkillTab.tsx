@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   listAdminSkills,
   deleteAdminSkill,
+  getAdminSkillDownloadUrl,
   listSkillCategories,
   type SkillListItem,
   type CategoryItem,
@@ -93,6 +94,15 @@ export default function SkillTab() {
       load()
     } catch (err) {
       message.error(err instanceof ApiError ? err.message : t('skill.error.deleteFailed'))
+    }
+  }
+
+  const handleDownload = async (record: SkillListItem) => {
+    try {
+      const url = await getAdminSkillDownloadUrl(record.skill_id)
+      window.open(url, '_blank')
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : t('skill.loadFailed'))
     }
   }
 
@@ -193,6 +203,9 @@ export default function SkillTab() {
         <Space size="small">
           <Button type="link" size="small" onClick={() => openDetail(record)}>
             {t('skill.detail')}
+          </Button>
+          <Button type="link" size="small" onClick={() => handleDownload(record)}>
+            {t('skill.download')}
           </Button>
           {canWrite && (
             <>

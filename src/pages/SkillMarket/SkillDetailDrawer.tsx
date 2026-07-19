@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Descriptions, Drawer, Spin, Tag, Space, Button, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import { getAdminSkill, getSkillMd, type SkillDetail, type CategoryItem } from '../../api/skill'
+import { getAdminSkill, getSkillMd, getAdminSkillDownloadUrl, type SkillDetail, type CategoryItem } from '../../api/skill'
 
 interface Props {
   open: boolean
@@ -119,7 +119,18 @@ export default function SkillDetailDrawer({ open, skillId, categories, onClose }
               </pre>
             </div>
           )}
-          <Button icon={<DownloadOutlined />} type="primary">
+          <Button
+            icon={<DownloadOutlined />}
+            type="primary"
+            onClick={async () => {
+              try {
+                const url = await getAdminSkillDownloadUrl(detail.skill_id)
+                window.open(url, '_blank')
+              } catch {
+                message.error(t('skill.loadFailed'))
+              }
+            }}
+          >
             {t('skill.detailDrawer.download')}
           </Button>
         </div>

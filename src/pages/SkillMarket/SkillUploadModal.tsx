@@ -4,8 +4,7 @@ import { InboxOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { UploadFile } from 'antd'
 import {
-  uploadSkillZip,
-  getParseTaskStatus,
+  uploadAndParseSkillZip,
   createAdminSkill,
   type CategoryItem,
 } from '../../api/skill'
@@ -26,20 +25,6 @@ export default function SkillUploadModal({ open, categories, onClose, onSuccess 
   const [submitting, setSubmitting] = useState(false)
   const [fileList, setFileList] = useState<UploadFile[]>([])
 
-  const pollParseTask = async (taskId: string, retries = 30): Promise<void> => {
-    for (let i = 0; i < retries; i++) {
-      const result = await getParseTaskStatus(taskId)
-      if (result.status === 'success' || result.status === 'completed') {
-        return
-      }
-      if (result.status === 'failed' || result.status === 'error') {
-        throw new Error(result.error || 'Parse failed')
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-    }
-    throw new Error('Parse timeout')
-  }
-
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
@@ -50,10 +35,11 @@ export default function SkillUploadModal({ open, categories, onClose, onSuccess 
       setSubmitting(true)
 
       const file = fileList[0].originFileObj as File
-      const parseTaskId = await uploadSkillZip(file)
 
-      await pollParseTask(parseTaskId)
+      // Presigned upload → parse → get parse_task_id
+      const { parseTaskId } = await uploadAndParseSkillZip(file)
 
+      // Create skill with parse_task_id and user-provided metadata
       await createAdminSkill({
         parse_task_id: parseTaskId,
         name: values.name || undefined,
