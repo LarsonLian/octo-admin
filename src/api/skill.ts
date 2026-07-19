@@ -51,24 +51,32 @@ skillApi.interceptors.response.use(
 
 export interface CategoryItem {
   skill_category_id: string
+  id: string
   name: string
   icon_key: string
   sort_order: number
+  skill_count: number
 }
 
 export interface SkillListItem {
   skill_id: string
+  id: string
   name: string
   display_name: string
   icon_url: string
   description: string
   category_id: string
+  category_name?: string
   tags: string[]
   owner_name: string
   visibility: string
   version: string
   file_name: string
   file_size: number
+  file_sha256?: string
+  file_url?: string
+  owner_id?: string
+  space_id?: string
   view_count: number
   download_count: number
   created_at: string
@@ -96,28 +104,101 @@ export interface ListSkillsResponse {
 }
 
 export interface CreateSkillParams {
-  parse_task_id: string
+  parse_task_id?: string
+  upload_id?: string
   name?: string
   display_name?: string
   description?: string
   category_id?: string
   tags?: string[]
   version?: string
+  visibility?: 'public' | 'space' | 'private'
+  icon_url?: string
 }
 
 export interface PatchSkillParams {
   name?: string
+  display_name?: string
   description?: string
   category_id?: string
   tags?: string[]
+  visibility?: 'public' | 'space' | 'private'
   icon_url?: string
 }
+
+export type UpdateSkillParams = PatchSkillParams
+
+export interface UploadInitResponse {
+  upload_id: string
+  presigned_url: string
+}
+
+export interface ParseTaskStatus {
+  id: string
+  status: 'pending' | 'parsing' | 'success' | 'failed'
+  error_message?: string
+  result_name?: string
+  result_description?: string
+  result_version?: string
+  result_tags?: string[]
+  result_readme?: string
+}
+
+export interface SkillListParams {
+  q?: string
+  category_id?: string
+  cursor?: string
+  limit?: number
+}
+
+export interface SkillListResponse {
+  items: SkillListItem[]
+  next_cursor: string | null
+}
+
+function normalizeCategory(item: Partial<CategoryItem>): CategoryItem {
+  const id = item.skill_category_id || item.id || ''
+  return {
+    skill_category_id: id,
+    id,
+    name: item.name || '',
+    icon_key: item.icon_key || '',
+    sort_order: item.sort_order ?? 0,
+    skill_count: item.skill_count ?? 0,
+  }
+}
+
+function normalizeSkill<T extends Partial<SkillListItem>>(item: T): SkillListItem & T {
+  const id = item.skill_id || item.id || ''
+  return {
+    ...item,
+    skill_id: id,
+    id,
+    name: item.name || '',
+    display_name: item.display_name || item.name || '',
+    icon_url: item.icon_url || '',
+    description: item.description || '',
+    category_id: item.category_id || '',
+    tags: item.tags || [],
+    owner_name: item.owner_name || '',
+    visibility: item.visibility || 'public',
+    version: item.version || '',
+    file_name: item.file_name || '',
+    file_size: item.file_size ?? 0,
+    view_count: item.view_count ?? 0,
+    download_count: item.download_count ?? 0,
+    created_at: item.created_at || '',
+    updated_at: item.updated_at || '',
+  } as SkillListItem & T
+}
+
+const parseTaskByUploadId = new Map<string, string>()
 
 // ─── Category API ────────────────────────────────────────────────────────────
 
 export async function listSkillCategories(): Promise<CategoryItem[]> {
   const resp = await skillApi.get<{ data: CategoryItem[] }>('/admin/skill_categories')
-  return resp.data.data
+  return resp.data.data.map(normalizeCategory)
 }
 
 export async function createSkillCategory(params: {
@@ -125,7 +206,7 @@ export async function createSkillCategory(params: {
   sort_order?: number
 }): Promise<CategoryItem> {
   const resp = await skillApi.post<{ data: CategoryItem }>('/admin/skill_categories', params)
-  return resp.data.data
+  return normalizeCategory(resp.data.data)
 }
 
 export async function updateSkillCategory(
@@ -136,7 +217,7 @@ export async function updateSkillCategory(
     `/admin/skill_categories/${encodeURIComponent(id)}`,
     params
   )
-  return resp.data.data
+  return normalizeCategory(resp.data.data)
 }
 
 export async function deleteSkillCategory(id: string): Promise<void> {
@@ -164,7 +245,7 @@ export async function listAdminSkills(
     pagination: { total: number; page: number; page_size: number }
   }>('/admin/skills', { params: query })
   return {
-    items: resp.data.data,
+    items: resp.data.data.map(normalizeSkill),
     total: resp.data.pagination.total,
     page: resp.data.pagination.page,
     page_size: resp.data.pagination.page_size,
@@ -175,12 +256,12 @@ export async function getAdminSkill(id: string): Promise<SkillDetail> {
   const resp = await skillApi.get<{ data: SkillDetail }>(
     `/admin/skills/${encodeURIComponent(id)}`
   )
-  return resp.data.data
+  return normalizeSkill(resp.data.data)
 }
 
 export async function createAdminSkill(params: CreateSkillParams): Promise<SkillDetail> {
   const resp = await skillApi.post<{ data: SkillDetail }>('/admin/skills', params)
-  return resp.data.data
+  return normalizeSkill(resp.data.data)
 }
 
 export async function updateAdminSkill(
@@ -191,7 +272,7 @@ export async function updateAdminSkill(
     `/admin/skills/${encodeURIComponent(id)}`,
     params
   )
-  return resp.data.data
+  return normalizeSkill(resp.data.data)
 }
 
 export async function deleteAdminSkill(id: string): Promise<void> {
@@ -253,7 +334,9 @@ export async function triggerAdminParse(uploadId: string): Promise<string> {
   const resp = await skillApi.post<{ data: { skill_parse_task_id: string } }>(
     `/admin/skill_uploads/${encodeURIComponent(uploadId)}/parse`
   )
-  return resp.data.data.skill_parse_task_id
+  const taskId = resp.data.data.skill_parse_task_id
+  parseTaskByUploadId.set(uploadId, taskId)
+  return taskId
 }
 
 export interface ParseTaskResult {
@@ -321,7 +404,7 @@ export async function uploadAndParseSkillZip(
         task.error?.code
       )
     }
-    // still parsing — continue polling
+    // still parsing - continue polling
   }
   throw new ApiError('Parse timed out', 408)
 }
@@ -343,5 +426,109 @@ export async function reuploadAdminSkill(
       tags: params.tags,
     }
   )
+  return normalizeSkill(resp.data.data)
+}
+
+// ─── Compatibility exports for the legacy SystemSkill page ──────────────────
+
+export async function listSkills(
+  params: SkillListParams = {}
+): Promise<SkillListResponse> {
+  const offset = params.cursor ? Number(params.cursor) || 0 : 0
+  const pageSize = params.limit || 20
+  const resp = await listAdminSkills({
+    q: params.q,
+    category_id: params.category_id,
+    offset,
+    page_size: pageSize,
+  })
+  const nextOffset = offset + resp.items.length
+  return {
+    items: resp.items,
+    next_cursor: nextOffset < resp.total ? String(nextOffset) : null,
+  }
+}
+
+export const getSkill = getAdminSkill
+
+export const deleteSkill = deleteAdminSkill
+
+export const updateSkill = updateAdminSkill
+
+export async function uploadInit(
+  fileName: string,
+  fileSize: number
+): Promise<UploadInitResponse> {
+  const result = await initAdminSkillUpload(fileName, fileSize)
+  return {
+    upload_id: result.skill_upload_id,
+    presigned_url: result.presigned_url,
+  }
+}
+
+export async function uploadToPresigned(
+  presignedUrl: string,
+  file: File
+): Promise<void> {
+  await axios.put(presignedUrl, file, {
+    headers: { 'Content-Type': 'application/octet-stream' },
+  })
+}
+
+export async function triggerParse(uploadId: string): Promise<{ task_id: string }> {
+  return { task_id: await triggerAdminParse(uploadId) }
+}
+
+export async function getParseStatus(taskId: string): Promise<ParseTaskStatus> {
+  const task = await pollAdminParseTask(taskId)
+  return {
+    id: task.skill_parse_task_id || taskId,
+    status: task.status as ParseTaskStatus['status'],
+    error_message: task.error?.message,
+    result_name: task.result?.name,
+    result_description: task.result?.description,
+    result_version: task.result?.version,
+    result_tags: task.result?.tags,
+    result_readme: task.result?.readme_content,
+  }
+}
+
+export async function createSkill(data: CreateSkillParams): Promise<SkillDetail> {
+  return createAdminSkill({
+    ...data,
+    parse_task_id: data.parse_task_id || (data.upload_id ? parseTaskByUploadId.get(data.upload_id) : undefined),
+  })
+}
+
+export async function uploadIcon(file: File): Promise<{ object_key: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const resp = await skillApi.post<{ data: { object_key: string } }>(
+    '/admin/skill_icons',
+    formData
+  )
   return resp.data.data
 }
+
+export const listCategories = listSkillCategories
+
+export async function createCategory(data: {
+  name: string
+  icon_key: string
+}): Promise<CategoryItem> {
+  return createSkillCategory({
+    name: data.name,
+    sort_order: 0,
+  })
+}
+
+export async function updateCategory(
+  id: string,
+  data: { name?: string; icon_key?: string }
+): Promise<CategoryItem> {
+  return updateSkillCategory(id, {
+    name: data.name,
+  })
+}
+
+export const deleteCategory = deleteSkillCategory
