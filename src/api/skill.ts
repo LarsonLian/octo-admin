@@ -1,8 +1,11 @@
 /**
  * octo-marketplace admin Skill management client.
  *
- * Uses the same mcpApi axios instance pattern (marketplace base URL + X-Admin-Token).
- * Endpoints: /admin/skill_categories and /admin/skills.
+ * Distinct from the shared `../api` axios instance because marketplace mounts
+ * under `/market/api/v1` and returns its own response envelope. Auth uses the
+ * caller's own Octo login token; marketplace verifies it with octo-server and
+ * enforces superAdmin server-side. No marketplace administrator credential is
+ * shipped to the browser.
  *
  * The backend response envelope for lists is:
  *   { data: T[], pagination: { total, page, page_size } }
@@ -13,10 +16,10 @@
 import axios, { AxiosError } from 'axios'
 import i18n, { FALLBACK_LANGUAGE } from '../i18n'
 import { ApiError } from './index'
+import { useAuthStore } from '../store/auth'
 
 const MARKETPLACE_BASE =
   import.meta.env.VITE_MARKETPLACE_API_BASE || '/market/api/v1'
-const ADMIN_TOKEN = import.meta.env.VITE_MARKETPLACE_ADMIN_TOKEN || ''
 
 const skillApi = axios.create({
   baseURL: MARKETPLACE_BASE,
@@ -24,8 +27,9 @@ const skillApi = axios.create({
 })
 
 skillApi.interceptors.request.use((config) => {
-  if (ADMIN_TOKEN) {
-    config.headers['X-Admin-Token'] = ADMIN_TOKEN
+  const token = useAuthStore.getState().token
+  if (token) {
+    config.headers.token = token
   }
   config.headers['Accept-Language'] =
     i18n.resolvedLanguage ?? FALLBACK_LANGUAGE
@@ -37,10 +41,15 @@ skillApi.interceptors.response.use(
   (
     error: AxiosError<{
       error?: { code?: string; message?: string; details?: Record<string, unknown> }
+      err?: { code?: string; message?: string; details?: Record<string, unknown> }
     }>
   ) => {
-    const wire = error.response?.data?.error
+    const wire = error.response?.data?.error ?? error.response?.data?.err
     const message = wire?.message || wire?.code || error.message
+    if (error.response?.status === 401) {
+      useAuthStore.getState().logout()
+      window.location.href = '/admin/login'
+    }
     return Promise.reject(
       new ApiError(message, error.response?.status, wire?.code, wire?.details)
     )

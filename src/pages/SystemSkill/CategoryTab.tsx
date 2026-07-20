@@ -11,7 +11,11 @@ import {
   type CategoryItem,
 } from '../../api/skill'
 
-export default function CategoryTab() {
+interface Props {
+  canWrite: boolean
+}
+
+export default function CategoryTab({ canWrite }: Props) {
   const { t } = useTranslation('systemSkill')
   const [data, setData] = useState<CategoryItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,18 +39,21 @@ export default function CategoryTab() {
   useEffect(() => { fetchList() }, [fetchList])
 
   const openCreate = () => {
+    if (!canWrite) return
     setEditItem(null)
     form.resetFields()
     setModalOpen(true)
   }
 
   const openEdit = (item: CategoryItem) => {
+    if (!canWrite) return
     setEditItem(item)
     form.setFieldsValue({ name: item.name })
     setModalOpen(true)
   }
 
   const handleSubmit = async () => {
+    if (!canWrite) return
     const values = await form.validateFields() as { name: string }
     setSubmitting(true)
     try {
@@ -67,6 +74,7 @@ export default function CategoryTab() {
   }
 
   const handleDelete = async (id: string) => {
+    if (!canWrite) return
     try {
       await deleteCategory(id)
       message.success(t('category.success.deleted'))
@@ -94,51 +102,57 @@ export default function CategoryTab() {
       dataIndex: 'skill_count',
       width: 120,
     },
-    {
-      title: t('category.column.action'),
-      key: 'action',
-      width: 200,
-      render: (_, record, index) => (
-        <Space size="small">
-          <a
-            onClick={() => handleMove(index, -1)}
-            style={{ opacity: index === 0 ? 0.3 : 1, pointerEvents: index === 0 ? 'none' : 'auto' }}
-          >
-            ↑
-          </a>
-          <a
-            onClick={() => handleMove(index, 1)}
-            style={{ opacity: index === data.length - 1 ? 0.3 : 1, pointerEvents: index === data.length - 1 ? 'none' : 'auto' }}
-          >
-            ↓
-          </a>
-          <a onClick={() => openEdit(record)}>{t('action.edit')}</a>
-          {record.skill_count > 0 ? (
-            <Tooltip title={t('category.deleteDisabled')}>
-              <span style={{ color: 'var(--ant-color-text-disabled, #ccc)', cursor: 'not-allowed' }}>
-                {t('action.delete')}
-              </span>
-            </Tooltip>
-          ) : (
-            <Popconfirm
-              title={t('category.deleteConfirm')}
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: 'var(--ant-color-error, #ff4d4f)' }}>{t('action.delete')}</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
+    ...(canWrite
+      ? [
+          {
+            title: t('category.column.action'),
+            key: 'action',
+            width: 200,
+            render: (_: unknown, record: CategoryItem, index: number) => (
+              <Space size="small">
+                <a
+                  onClick={() => handleMove(index, -1)}
+                  style={{ opacity: index === 0 ? 0.3 : 1, pointerEvents: index === 0 ? 'none' : 'auto' }}
+                >
+                  ↑
+                </a>
+                <a
+                  onClick={() => handleMove(index, 1)}
+                  style={{ opacity: index === data.length - 1 ? 0.3 : 1, pointerEvents: index === data.length - 1 ? 'none' : 'auto' }}
+                >
+                  ↓
+                </a>
+                <a onClick={() => openEdit(record)}>{t('action.edit')}</a>
+                {record.skill_count > 0 ? (
+                  <Tooltip title={t('category.deleteDisabled')}>
+                    <span style={{ color: 'var(--ant-color-text-disabled, #ccc)', cursor: 'not-allowed' }}>
+                      {t('action.delete')}
+                    </span>
+                  </Tooltip>
+                ) : (
+                  <Popconfirm
+                    title={t('category.deleteConfirm')}
+                    onConfirm={() => handleDelete(record.id)}
+                  >
+                    <a style={{ color: 'var(--ant-color-error, #ff4d4f)' }}>{t('action.delete')}</a>
+                  </Popconfirm>
+                )}
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <span />
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          {t('category.create')}
-        </Button>
+        {canWrite && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            {t('category.create')}
+          </Button>
+        )}
       </div>
 
       <Table
