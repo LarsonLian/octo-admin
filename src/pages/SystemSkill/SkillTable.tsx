@@ -22,9 +22,10 @@ const VISIBILITY_COLOR: Record<string, string> = {
 interface Props {
   onView: (id: string) => void
   onUpload: () => void
+  canWrite: boolean
 }
 
-export default function SkillTable({ onView, onUpload }: Props) {
+export default function SkillTable({ onView, onUpload, canWrite }: Props) {
   const { t } = useTranslation('systemSkill')
   const [data, setData] = useState<SkillListItem[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -155,9 +156,11 @@ export default function SkillTable({ onView, onUpload }: Props) {
             onChange={(e) => setKeyword(e.target.value)}
             style={{ width: 200 }}
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={onUpload}>
-            {t('list.upload')}
-          </Button>
+          {canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={onUpload}>
+              {t('list.upload')}
+            </Button>
+          )}
         </Space>
       </div>
 

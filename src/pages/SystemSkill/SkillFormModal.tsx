@@ -22,6 +22,7 @@ interface Props {
   editSkill?: SkillDetail | null
   onClose: () => void
   onSuccess: () => void
+  canWrite: boolean
 }
 
 const MAX_SKILL_PACKAGE_SIZE = 20 * 1024 * 1024
@@ -43,7 +44,7 @@ function validateSkillPackage(file: File, t: (key: string) => string): string | 
   return null
 }
 
-export default function SkillFormModal({ open, editSkill, onClose, onSuccess }: Props) {
+export default function SkillFormModal({ open, editSkill, onClose, onSuccess, canWrite }: Props) {
   const { t } = useTranslation('systemSkill')
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -98,6 +99,7 @@ export default function SkillFormModal({ open, editSkill, onClose, onSuccess }: 
   const activeEditSkill = editSkill ?? renderEditSkill
 
   const handleFileUpload = async (file: File) => {
+    if (!canWrite) return
     const validationError = validateSkillPackage(file, t)
     if (validationError) {
       message.error(validationError)
@@ -156,6 +158,7 @@ export default function SkillFormModal({ open, editSkill, onClose, onSuccess }: 
   }
 
   const handleIconUpload = async (file: File) => {
+    if (!canWrite) return
     setIconUploading(true)
     try {
       const { object_key } = await uploadIcon(file)
@@ -168,6 +171,7 @@ export default function SkillFormModal({ open, editSkill, onClose, onSuccess }: 
   }
 
   const handleSubmit = async () => {
+    if (!canWrite) return
     const values = await form.validateFields()
     if (!activeEditSkill && !parseTaskId) {
       message.error(t('upload.noParsedFile'))

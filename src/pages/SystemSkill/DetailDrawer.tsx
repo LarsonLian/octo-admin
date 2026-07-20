@@ -9,6 +9,7 @@ interface Props {
   onClose: () => void
   onDeleted: () => void
   onEdit: (skill: SkillDetail) => void
+  canManage: boolean
 }
 
 const VISIBILITY_COLOR: Record<string, string> = {
@@ -23,7 +24,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function DetailDrawer({ skillId, open, onClose, onDeleted, onEdit }: Props) {
+export default function DetailDrawer({ skillId, open, onClose, onDeleted, onEdit, canManage }: Props) {
   const { t } = useTranslation('systemSkill')
   const [skill, setSkill] = useState<SkillDetail | null>(null)
   const [loading, setLoading] = useState(false)
@@ -43,7 +44,7 @@ export default function DetailDrawer({ skillId, open, onClose, onDeleted, onEdit
   }, [open, skillId])
 
   const handleDelete = async () => {
-    if (!skillId) return
+    if (!skillId || !canManage) return
     try {
       await deleteSkill(skillId)
       message.success(t('toast.deleted'))
@@ -105,18 +106,20 @@ export default function DetailDrawer({ skillId, open, onClose, onDeleted, onEdit
             <Descriptions.Item label={t('detail.field.updatedAt')}>{skill.updated_at}</Descriptions.Item>
           </Descriptions>
 
-          <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
-            <Button onClick={() => onEdit(skill)}>{t('action.edit')}</Button>
-            <Popconfirm
-              title={t('confirm.delete.title')}
-              description={t('confirm.delete.desc')}
-              onConfirm={handleDelete}
-              okText={t('confirm.delete.ok')}
-              cancelText={t('confirm.delete.cancel')}
-            >
-              <Button danger>{t('action.delete')}</Button>
-            </Popconfirm>
-          </div>
+          {canManage && (
+            <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
+              <Button onClick={() => onEdit(skill)}>{t('action.edit')}</Button>
+              <Popconfirm
+                title={t('confirm.delete.title')}
+                description={t('confirm.delete.desc')}
+                onConfirm={handleDelete}
+                okText={t('confirm.delete.ok')}
+                cancelText={t('confirm.delete.cancel')}
+              >
+                <Button danger>{t('action.delete')}</Button>
+              </Popconfirm>
+            </div>
+          )}
         </>
       )}
     </Drawer>
