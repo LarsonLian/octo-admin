@@ -50,7 +50,7 @@ export default function SkillTab() {
           q: kw || undefined,
           category_id: cat || undefined,
           sort: s || undefined,
-          offset: (nextPage - 1) * PAGE_SIZE,
+          page: nextPage,
           page_size: PAGE_SIZE,
         })
         setRows(resp.items ?? [])

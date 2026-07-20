@@ -92,6 +92,7 @@ export interface ListSkillsParams {
   category_id?: string
   tags?: string
   sort?: string
+  page?: number
   offset?: number
   page_size?: number
 }
@@ -247,8 +248,13 @@ export async function listAdminSkills(
   if (params.category_id) query.category_id = params.category_id
   if (params.tags) query.tags = params.tags
   if (params.sort) query.sort = params.sort
-  if (params.offset != null && params.offset > 0) query.offset = params.offset
   if (params.page_size && params.page_size > 0) query.page_size = params.page_size
+  if (params.page && params.page > 0) {
+    query.page = params.page
+  } else if (params.offset != null && params.offset > 0) {
+    const pageSize = params.page_size && params.page_size > 0 ? params.page_size : 20
+    query.page = Math.floor(params.offset / pageSize) + 1
+  }
   const resp = await skillApi.get<{
     data: SkillListItem[]
     pagination: { total: number; page: number; page_size: number }
@@ -289,11 +295,10 @@ export async function deleteAdminSkill(id: string): Promise<void> {
 }
 
 export async function getSkillMd(id: string): Promise<string> {
-  const resp = await skillApi.get(`/admin/skills/${encodeURIComponent(id)}/skill-md`, {
-    responseType: 'text',
-    transformResponse: [(data: string) => data],
-  })
-  return resp.data as string
+  const resp = await skillApi.get<{ data: { content: string } }>(
+    `/admin/skills/${encodeURIComponent(id)}/skill_md`
+  )
+  return resp.data.data.content || ''
 }
 
 // ─── Download ────────────────────────────────────────────────────────────────
@@ -466,10 +471,11 @@ export async function listSkills(
 ): Promise<SkillListResponse> {
   const offset = params.cursor ? Number(params.cursor) || 0 : 0
   const pageSize = params.limit || 20
+  const page = Math.floor(offset / pageSize) + 1
   const resp = await listAdminSkills({
     q: params.q,
     category_id: params.category_id,
-    offset,
+    page,
     page_size: pageSize,
   })
   const nextOffset = offset + resp.items.length
