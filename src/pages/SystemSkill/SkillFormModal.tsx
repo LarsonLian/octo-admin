@@ -10,6 +10,7 @@ import {
   getParseStatus,
   createSkill,
   updateSkill,
+  commitAdminSkillReupload,
   uploadIcon,
   listCategories,
   type SkillDetail,
@@ -180,15 +181,16 @@ export default function SkillFormModal({ open, editSkill, onClose, onSuccess, ca
     setSubmitting(true)
     try {
       if (activeEditSkill) {
+        if (parseTaskId) {
+          await commitAdminSkillReupload(activeEditSkill.id, {
+            parse_task_id: parseTaskId,
+            version: values.version,
+            changelog: values.changelog,
+            tags: values.tags,
+          })
+        }
         await updateSkill(activeEditSkill.id, {
-          ...(parseTaskId
-            ? {
-                parse_task_id: parseTaskId,
-                name: values.name,
-                version: values.version,
-                changelog: values.changelog,
-              }
-            : {}),
+          name: values.name,
           display_name: values.display_name,
           description: values.description,
           category_id: values.category_id,
