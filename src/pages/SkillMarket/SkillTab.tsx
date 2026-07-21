@@ -200,7 +200,7 @@ export default function SkillTab() {
       key: 'actions',
       width: 200,
       render: (_, record) => (
-        <Space size="small">
+        <Space size="small" onClick={(event) => event.stopPropagation()}>
           <Button type="link" size="small" onClick={() => openDetail(record)}>
             {t('skill.detail')}
           </Button>
