@@ -598,10 +598,11 @@ export async function createCategory(data: {
 
 export async function updateCategory(
   id: string,
-  data: { name?: string; icon_key?: string }
+  data: { name?: string; icon_key?: string; sort_order?: number }
 ): Promise<CategoryItem> {
   return updateSkillCategory(id, {
     name: data.name,
+    sort_order: data.sort_order,
   })
 }
 

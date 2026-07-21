@@ -84,12 +84,25 @@ export default function CategoryTab({ canWrite }: Props) {
     }
   }
 
-  const handleMove = (index: number, direction: -1 | 1) => {
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    if (!canWrite) return
     const target = index + direction
     if (target < 0 || target >= data.length) return
     const next = [...data]
     ;[next[index], next[target]] = [next[target], next[index]]
     setData(next)
+    try {
+      const moved = next[target]
+      const swapped = next[index]
+      await Promise.all([
+        updateCategory(swapped.id, { sort_order: index }),
+        updateCategory(moved.id, { sort_order: target }),
+      ])
+      fetchList()
+    } catch (err) {
+      if (err instanceof Error) message.error(err.message)
+      fetchList()
+    }
   }
 
   const columns: ColumnsType<CategoryItem> = [
