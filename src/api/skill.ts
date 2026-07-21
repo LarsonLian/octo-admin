@@ -363,6 +363,44 @@ export interface InitUploadResult {
   object_key: string
 }
 
+function assertSafeExternalUrl(raw: string): void {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new ApiError('Invalid upload URL', 502, 'invalid_response')
+  }
+
+  if (url.protocol === 'https:') return
+  if (
+    url.protocol === 'http:' &&
+    (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+  ) {
+    return
+  }
+
+  throw new ApiError('Upload URL scheme is not allowed', 502, 'invalid_response')
+}
+
+async function putPresignedFile(
+  presignedUrl: string,
+  file: File,
+  options: {
+    method?: string
+    headers?: Record<string, string>
+  } = {}
+): Promise<void> {
+  assertSafeExternalUrl(presignedUrl)
+  const putResp = await fetch(presignedUrl, {
+    method: options.method || 'PUT',
+    headers: options.headers ?? {},
+    body: file,
+  })
+  if (!putResp.ok) {
+    throw new ApiError(`Upload failed (${putResp.status})`, putResp.status)
+  }
+}
+
 export async function initAdminSkillUpload(fileName: string, fileSize: number): Promise<InitUploadResult> {
   const resp = await skillApi.post<{ data: InitUploadResult }>('/admin/skill_uploads', {
     file_name: fileName,
@@ -372,18 +410,15 @@ export async function initAdminSkillUpload(fileName: string, fileSize: number): 
 }
 
 export async function initReupload(
-  skillId: string,
+  _skillId: string,
   fileName: string,
   fileSize: number
 ): Promise<UploadInitResponse> {
-  const resp = await skillApi.post<{ data: InitUploadResult }>(
-    `/admin/skills/${encodeURIComponent(skillId)}/reupload/init`,
-    {
-      file_name: fileName,
-      file_size: fileSize,
-    }
-  )
-  const result = resp.data.data
+  // octo-marketplace-dev exposes admin upload init as /admin/skill_uploads.
+  // The later /admin/skills/:id/reupload commit validates and binds the
+  // parsed task to the target skill, so the init step can use the same admin
+  // upload endpoint as first-time creation.
+  const result = await initAdminSkillUpload(fileName, fileSize)
   return {
     upload_id: result.skill_upload_id,
     presigned_url: result.presigned_url,
@@ -438,14 +473,10 @@ export async function uploadAndParseSkillZip(
   const init = await initAdminSkillUpload(file.name, file.size)
 
   // 2. PUT file to presigned URL
-  const putResp = await fetch(init.presigned_url, {
-    method: init.method || 'PUT',
+  await putPresignedFile(init.presigned_url, file, {
+    method: init.method,
     headers: init.headers ?? {},
-    body: file,
   })
-  if (!putResp.ok) {
-    throw new ApiError(`Upload failed (${putResp.status})`, putResp.status)
-  }
 
   // 3. Trigger parse
   onProgress?.('parsing')
@@ -534,14 +565,10 @@ export async function uploadToPresigned(
   onProgress?: (progress: number) => void
 ): Promise<void> {
   onProgress?.(30)
-  await axios.put(presignedUrl, file, {
+  await putPresignedFile(presignedUrl, file, {
     headers: Object.keys(headers).length
       ? headers
       : { 'Content-Type': 'application/octet-stream' },
-    onUploadProgress: (event) => {
-      if (!event.total) return
-      onProgress?.(30 + Math.round((event.loaded / event.total) * 30))
-    },
   })
   onProgress?.(60)
 }
@@ -575,13 +602,30 @@ export async function createSkill(data: CreateSkillParams): Promise<SkillDetail>
 }
 
 export async function uploadIcon(file: File): Promise<{ object_key: string }> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const resp = await skillApi.post<{ data: { object_key: string } }>(
-    '/admin/skill_icons',
-    formData
-  )
-  return resp.data.data
+  // Mirrors octo-web's dmworkskillmarket icon flow: initialize through the
+  // shared skill icon endpoint, PUT bytes to the returned presigned URL, then
+  // persist the returned object_key on the skill metadata. The surrounding
+  // admin CRUD still uses /admin/* endpoints.
+  const resp = await skillApi.post<{
+    data: {
+      object_key: string
+      presigned_url: string
+      method?: string
+      headers?: Record<string, string>
+    }
+  }>('/skill_icon_uploads', {
+    file_name: file.name,
+    file_size: file.size,
+  })
+  const init = resp.data.data
+  if (!init?.object_key || !init?.presigned_url) {
+    throw new ApiError('Upload response is missing required fields', 502, 'invalid_response')
+  }
+  await putPresignedFile(init.presigned_url, file, {
+    method: init.method,
+    headers: init.headers ?? {},
+  })
+  return { object_key: init.object_key }
 }
 
 export const listCategories = listSkillCategories
