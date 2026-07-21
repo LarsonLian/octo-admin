@@ -299,6 +299,24 @@ export async function updateAdminSkill(
   return normalizeSkill(resp.data.data)
 }
 
+export interface CommitReuploadParams {
+  parse_task_id: string
+  version?: string
+  changelog?: string
+  tags?: string[]
+}
+
+export async function commitAdminSkillReupload(
+  skillId: string,
+  params: CommitReuploadParams
+): Promise<SkillDetail> {
+  const resp = await skillApi.post<{ data: SkillDetail }>(
+    `/admin/skills/${encodeURIComponent(skillId)}/reupload`,
+    params
+  )
+  return normalizeSkill(resp.data.data)
+}
+
 export async function deleteAdminSkill(id: string): Promise<void> {
   await skillApi.delete(`/admin/skills/${encodeURIComponent(id)}`)
 }
@@ -461,16 +479,12 @@ export async function reuploadAdminSkill(
   onProgress?: (stage: 'uploading' | 'parsing') => void
 ): Promise<SkillDetail> {
   const { parseTaskId } = await uploadAndParseSkillZip(file, onProgress)
-  const resp = await skillApi.post<{ data: SkillDetail }>(
-    `/admin/skills/${encodeURIComponent(skillId)}/reupload`,
-    {
-      parse_task_id: parseTaskId,
-      version: params.version,
-      changelog: params.changelog,
-      tags: params.tags,
-    }
-  )
-  return normalizeSkill(resp.data.data)
+  return commitAdminSkillReupload(skillId, {
+    parse_task_id: parseTaskId,
+    version: params.version,
+    changelog: params.changelog,
+    tags: params.tags,
+  })
 }
 
 // ─── Compatibility exports for the legacy SystemSkill page ──────────────────
